@@ -1,0 +1,16 @@
+# beancount & analysis
+beancount
+scikit-learn
+numpy
+titlecase
+dateparser
+pandas
+xlrd
+fava
+smart_importer
+beancount-import
+regex
+# editor
+pylint
+yapf
+isort

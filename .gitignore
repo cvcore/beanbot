@@ -1,0 +1,10 @@
+*beancount-import
+*.DS_Store
+*__pycache__
+*.egg-info
+# GitHub Codespaces
+.venv
+*.picklecache
+playground
+.devcontainer
+.vscode
