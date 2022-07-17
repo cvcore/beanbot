@@ -5,7 +5,7 @@ import re
 import dateparser
 import pandas
 import titlecase
-from beancount.core import account, data, flags
+from beancount.core import data, flags
 from beancount.core.amount import Amount
 from beancount.core.number import D
 from beancount.core.position import Cost
@@ -27,18 +27,22 @@ def get_currency(currency):
 
 
 class Importer(importer.ImporterProtocol):
-    def __init__(self, account):
+    def __init__(self, account, lastfour):
         self.account = account
+        self.lastfour = lastfour
 
-    def identify(self, f):
+    def identify(self, file):
         """
         assert raw transaction records are stored as:
         .../citic/transactions/[last_four]/YYYYMM.xls
+        processed raw transactions are stored under:
+        .../citic/transactions/archive/[last_four]/YYYYMM.xls
         """
         # return re.match('.*\.xls', os.path.basename(f.name))
-        return re.match(f"^.*citic/transactions/((?!archive).)*/.*\.xls$", f.name)
+        # return re.match(f"^.*citic/transactions/((?!archive).)*/.*\.xls$", file.name)
+        return re.match(r"^.*citic/transactions/" + self.lastfour + r"/.*\.xls$", file.name)
 
-    def extract(self, f, existing_entries=None):
+    def extract(self, file, existing_entries=None):
         """
         format example (6393):
         交易日期	入账日期	交易描述	卡末四位	交易币种	结算币种	交易金额	结算金额
@@ -50,10 +54,11 @@ class Importer(importer.ImporterProtocol):
         """
         entries = []
         try:
-            dataframe = pandas.read_excel(io=f.name, sheet_name='本期账单明细')
+            dataframe = pandas.read_excel(io=file.name, sheet_name='本期账单明细')
         except ValueError:
-            dataframe = pandas.read_excel(io=f.name, sheet_name='本期账单明细(人民币)')
-        lastfour = f.name.rsplit('/')[-2]
+            dataframe = pandas.read_excel(io=file.name, sheet_name='本期账单明细(人民币)')
+        lastfour = file.name.rsplit('/')[-2]
+        assert lastfour == self.lastfour
 
         for index, row_data in dataframe.iterrows():
             # check the table heads as verification
@@ -74,7 +79,7 @@ class Importer(importer.ImporterProtocol):
             else:
                 rate = None
 
-            meta = data.new_metadata(f.name, index)
+            meta = data.new_metadata(file.name, index)
 
             txn = data.Transaction(
                 meta=meta,
