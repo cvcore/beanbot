@@ -3,11 +3,12 @@
 # Filtering the transactions
 
 from abc import ABC, abstractmethod
-from typing import FrozenSet, List, Set
+from typing import FrozenSet, List, Optional, Set
 from beancount.core import data, interpolate
 import regex as re
+from beanbot.common.types import Transactions
 
-from beanbot.ops.conditions import is_balanced, is_predicted
+from beanbot.ops.conditions import is_balanced, is_internal_transfer, is_predicted
 
 
 class BaseFilter:
@@ -103,3 +104,35 @@ class PredictedTransactionFilter(TransactionFilter):
 
     def _cond_impl(self, entry: data.Directive) -> bool:
         return is_predicted(entry)
+
+
+class NonduplicatedTransactionFilter(TransactionFilter):
+    """Remove double-bookings for internal transactions between one bank account to the other bank account
+
+    Arguments:
+        `existing_transactions`: (optional, Transactions) if specified, compare also with existing transactions for duplicate filtering.
+        `accepted_delay`: (optional, int) maximum number of delay in days for duplicate detection"""
+
+    def __init__(self, existing_transactions: Optional[Transactions]=None, accepted_delay: Optional[int]=None):
+        self._existing_transactions = existing_transactions
+        self._accepted_delay = accepted_delay
+
+    def _filter_impl(self, entries: data.Entries) -> data.Entries:
+        filtered_entries = []
+
+        for idx, entry in enumerate(entries):
+            entry_valid = True
+            for entry_next in entries[idx:]:
+                if is_internal_transfer(entry, entry_next):
+                    print(f"Found duplicate entries in new transactions:\n{entry_next}\n{entry}")
+                    entry_valid = False
+                    break
+            if self._existing_transactions is not None:
+                for entry_next in self._existing_transactions:
+                    if is_internal_transfer(entry, entry_next):
+                        print(f"Found duplicate entries in existing transactions:\n{entry_next}\n{entry}")
+                        entry_valid = False
+                        break
+
+            if entry_valid:
+                filtered_entries.append(entry)

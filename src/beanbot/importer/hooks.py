@@ -1,5 +1,6 @@
 import logging
 from functools import wraps
+from typing import List
 
 from beancount.loader import load_file
 from beancount.core.data import Entries
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 class ImporterHook:
     """Interface for an importer hook."""
 
-    def __call__(self, importer: ImporterProtocol, file: str, imported_entries: Entries, existing_entries: Entries):
+    def __call__(self, importer: ImporterProtocol, file: str, imported_entries: Entries, existing_entries: Entries) -> Entries:
         """Apply the hook and modify the imported entries.
         Args:
             importer: The importer that this hooks is being applied to.
@@ -29,7 +30,7 @@ class ImporterHook:
         raise NotImplementedError
 
 
-def apply_hooks(importer, hooks):
+def apply_hooks(importer: ImporterProtocol, hooks: List[ImporterHook]) -> ImporterProtocol:
     """Apply a list of importer hooks to an importer.
     Args:
         importer: An importer instance.
@@ -59,7 +60,7 @@ def apply_hooks(importer, hooks):
 class BeanBotPredictionHook(ImporterHook):
     """Interface for an importer hook."""
 
-    def __call__(self, importer, file, imported_entries, existing_entries):
+    def __call__(self, importer: ImporterProtocol, file: str, imported_entries: Entries, existing_entries: Entries) -> Entries:
         """Apply the hook and modify the imported entries.
         Args:
             importer: The importer that this hooks is being applied to.
