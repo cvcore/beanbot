@@ -43,7 +43,7 @@ class MappingTransactionClassifier(AbstractTransactionClassifier):
             if desc in self._desc_to_cat:
                 if cat != self._desc_to_cat[desc]:
                     # debug
-                    print(f"Dropping ambiguous case: Desc: {desc}\t Cat: {cat}\tPrevCat: {self._desc_to_cat[desc]}")
+                    print(f"Dropping ambiguous case: Desc: {desc} Cat: {cat} PrevCat: {self._desc_to_cat[desc]}")
 
                     self._desc_ignore.add(desc)
                     self._desc_to_cat.pop(desc)

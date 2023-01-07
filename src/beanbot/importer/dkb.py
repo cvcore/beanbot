@@ -31,7 +31,8 @@ class Importer(importer.ImporterProtocol):
         with open(f.name, encoding='latin-1') as csvfile:
 
             csv_header = [next(csvfile) for _ in range(6)]
-            account_info = parse.parse('"Kontonummer:";"{account_iban} / Girokonto";', csv_header[0].strip())
+            # print(csv_header)
+            account_info = parse.parse('"Kontonummer:";"{account_iban} / Girokonto{}";', csv_header[0].strip())
             assert account_info is not None
             account_iban = account_info['account_iban']
 

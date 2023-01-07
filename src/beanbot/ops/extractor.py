@@ -9,7 +9,6 @@ from beancount.core.data import Transaction
 import regex as re
 from beanbot.common.configs import BeanbotConfig
 from beanbot.common.types import Postings, Transactions
-from beanbot.common.configs import BeanbotConfig
 
 
 class AbstractTransactionExtractor(ABC):
