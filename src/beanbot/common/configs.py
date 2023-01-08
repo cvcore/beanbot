@@ -75,7 +75,8 @@ class Config:
         conf_name = custom_config.values[0].value
         conf_value = custom_config.values[1].value
         assert conf_name in self._config_types.keys(), f"Got unknown config name {conf_name}"
-        assert type(conf_value) == self._config_types[conf_name], f"Got invalid type {type(conf_value)} for config {conf_name}. Expect {self._config_types[conf_name]}"
+        if type(conf_value) != self._config_types[conf_name]:
+            conf_value = self._config_types[conf_name](conf_value)
 
         self._config_values[conf_name] = conf_value
 
@@ -98,3 +99,4 @@ class BeanbotConfig(Config):
         self.add_value('fallback-transaction-file', str)
         self.add_value('regex-source-account', str)
         self.add_value('regex-category-account', str)
+        self.add_value('dedup-window-days', int)
