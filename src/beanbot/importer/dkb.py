@@ -19,11 +19,12 @@ def string_cleaning(in_string: str) -> str:
 
 class Importer(importer.ImporterProtocol):
 
-    def __init__(self, account):
+    def __init__(self, account, lastfour):
         self._account = account
+        self._lastfour = lastfour
 
     def identify(self, f):
-        return re.match(f"^.*dkb/transactions/((?!archive).)*/.*\.csv$", f.name)
+        return re.match(f"^.*dkb/transactions/{self._lastfour}/.*\.csv$", f.name)
 
     def extract(self, f, existing_entries=None):
         entries = []
@@ -31,10 +32,12 @@ class Importer(importer.ImporterProtocol):
         with open(f.name, encoding='latin-1') as csvfile:
 
             csv_header = [next(csvfile) for _ in range(6)]
-            # print(csv_header)
-            account_info = parse.parse('"Kontonummer:";"{account_iban} / Girokonto{}";', csv_header[0].strip())
+            account_info = parse.parse('"Kontonummer:";"{iban} / {type}";', csv_header[0].strip())
             assert account_info is not None
-            account_iban = account_info['account_iban']
+            account_iban = account_info['iban']
+            # account_type = account_info['type']
+
+            assert self._lastfour == account_iban[-4:], f"Last four digits of IBAN should be {self._lastfour}, got {account_iban[-4:]}"
 
             date_begin = dateutil.parser.parse(csv_header[2].split(';')[1].replace('"', ''), dayfirst=True).date()
             date_end = dateutil.parser.parse(csv_header[3].split(';')[1].replace('"', ''), dayfirst=True).date()
