@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from datetime import date
 import numpy as np
 from beancount.core import interpolate
-from beancount.core.data import Transaction
+from beancount.core.data import Transaction, Directive, Entries
 import regex as re
 from beanbot.common.configs import BeanbotConfig
 from beanbot.common.types import Postings, Transactions
@@ -15,21 +15,19 @@ class AbstractTransactionExtractor(ABC):
     """Abstract Extractor class, extract a list of string descriptions from a list of Transactions"""
 
     @abstractmethod
-    def extract(self, transactions: Transactions) -> list:
+    def extract_one(self, transaction: Transaction) -> str:
         pass
+
+    def extract(self, transactions: Transactions) -> list[str]:
+        return [self.extract_one(t) for t in transactions]
 
 
 class TransactionDescriptionExtractor(AbstractTransactionExtractor):
     """Extract descriptions from transactions"""
 
-    def extract(self, transactions: Transactions) -> list[str]:
+    def extract_one(self, transaction: Transaction) -> str:
         replace_none = lambda s: s if s is not None else ''
-
-        transaction_descriptions = [
-            f"{replace_none(t.payee)}\r{replace_none(t.narration)}" for t in transactions
-        ]
-
-        return transaction_descriptions
+        return f"{replace_none(transaction.payee)}\r{replace_none(transaction.narration)}"
 
 
 class _TransactionRegExpExtractor(AbstractTransactionExtractor):
@@ -53,9 +51,9 @@ class _TransactionAccountExtractor(_TransactionRegExpExtractor):
             return valid_accounts[0]
         return ''
 
-    def extract(self, transactions: Transactions) -> list[str]:
+    def extract_one(self, transaction: Transaction) -> list[str]:
 
-        return [self.posting_filter_keep_one(t.postings) for t in transactions]
+        return self.posting_filter_keep_one(transaction.postings)
 
 
 class TransactionCategoryAccountExtractor(_TransactionAccountExtractor):
@@ -79,9 +77,9 @@ class TransactionDateExtractor(AbstractTransactionExtractor):
     def _date_to_int(self, dt: date) -> int:
         return dt.year * 10000 + dt.month * 100 + dt.day
 
-    def extract(self, transactions: Transactions) -> list:
-        dates = [self._date_to_int(t.date) for t in transactions]
-        return dates
+    def extract_one(self, transaction: Transaction) -> str:
+        date = self._date_to_int(transaction.date)
+        return date
 
 
 class _TransactionAmountExtractor(_TransactionRegExpExtractor):
@@ -94,9 +92,9 @@ class _TransactionAmountExtractor(_TransactionRegExpExtractor):
                 return np.sign(p.units.number)
         return 0.
 
-    def extract(self, transactions: Transactions) -> list[str]:
+    def extract_one(self, transaction: Transaction) -> str:
 
-        return [self._posting_amount_keep_one(t.postings) for t in transactions]
+        return self._posting_amount_keep_one(transaction.postings)
 
 
 class TransactionCategoryAmountExtractor(_TransactionAmountExtractor):
@@ -116,16 +114,52 @@ class TransactionRecordSourceAmountExtractor(_TransactionAmountExtractor):
 class TransactionSourceFilenameExtractor(AbstractTransactionExtractor):
     """Abstract Extractor class, extract a list of string descriptions from a list of Transactions"""
 
-    def extract(self, transactions: Transactions) -> list:
+    def extract_one(self, transaction: Transaction) -> str:
 
-        filenames = []
+        try:
+            filename = transaction.meta['filename']
+        except KeyError:
+            filename = ''
 
-        for txn in transactions:
-            try:
-                filename = txn.meta['filename']
-            except KeyError:
-                filename = ''
+        return filename
 
-            filenames.append(filename)
 
-        return filenames
+
+class BaseEntryExtractor():
+    """Abstract Extractor class, extract a list of string descriptions from a list of Transactions"""
+
+    SUPPORTED_ENTRY_TYPES = [Transaction]
+
+    def __init__(self):
+        self._extractor_cache = {}
+
+    # TODO: put extract and extract_one into a abstract base class
+
+    def extract(self, entries: Entries) -> list[str]:
+        """Extract a list of string descriptions from a list of Entries"""
+        return [self.extract_one(e) for e in entries]
+
+    def extract_one(self, entry: Directive) -> str:
+        """Extract a list of string descriptions from a list of Entries"""
+        assert self.__class__.__name__ != 'BaseEntryExtractor', "Calling from base class is not allowed"
+        assert type(entry) in self.SUPPORTED_ENTRY_TYPES, f"Unsupported entry type: {type(entry)}"
+
+        entry_class_name = entry.__class__.__name__ # Class name of the entry, e.g. Transaction / Balance / Open ...
+        extractor_type = self.__class__.__name__ # Class name of the extractor, e.g. EntrySourceAccountExtractor / EntrySourceFilenameExtractor
+        extractor_class = extractor_type.replace('Entry', entry_class_name, 1) # get the extractor class name to be used depending on the entry's and the extractor's class name
+        print(f"[DEBUG] extractor class: {extractor_class}")
+
+        if extractor_class not in self._extractor_cache:
+            self._extractor_cache[extractor_class] = globals()[extractor_class]()
+            print(f"[DEBUG] extractor class: {extractor_class} instantiated")
+        extractor = self._extractor_cache[extractor_class]
+
+        return extractor.extract_one(entry)
+
+
+class EntryRecordSourceAccountExtractor(BaseEntryExtractor):
+    pass
+
+
+class EntrySourceFilenameExtractor(BaseEntryExtractor):
+    pass
