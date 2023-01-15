@@ -9,7 +9,7 @@ from beanbot.classifier.meta_transaction_classifier import MetaTransactionClassi
 from beancount.core.data import Transaction
 from beancount.core import data
 from beanbot.ops.filter import PredictedTransactionFilter, TransactionFilter
-from beanbot.ops.file_saver import TransactionFileSaver
+from beanbot.ops.file_saver import EntryFileSaver
 from beanbot.ops.dedup import InternalTransferDeduplicator
 from beanbot.common.configs import BeanbotConfig
 from beancount.ingest.similar import find_similar_entries
@@ -92,7 +92,6 @@ class BeanBotPredictionHook(ImporterHook):
         transactions_existing = TransactionFilter().filter(existing_entries)
         transactions_imported = TransactionFilter().filter(imported_entries)
         other_entries_imported = [entry for entry in imported_entries if entry not in transactions_imported]
-        print(other_entries_imported)
 
         transactions_duplicated, transactions_non_duplicated = deduplicator.deduplicate(transactions_existing, transactions_imported)
         imported_entries_nodup = data.sorted([*transactions_non_duplicated, *other_entries_imported])
@@ -104,17 +103,20 @@ class BeanBotPredictionHook(ImporterHook):
         printer.print_entries(imported_entries_nodup)
         print('------------------------')
 
-        saver = TransactionFileSaver(global_config['fallback-transaction-file'])
-        saver.learn_filename(transactions_existing)
+        print('[DEBUG] Learning filename for existing entries...')
+        saver = EntryFileSaver(global_config['fallback-transaction-file'])
+        saver.learn_filename(existing_entries)
 
         entries_all = data.sorted([*imported_entries_nodup, *existing_entries])
         transactions_all = TransactionFilter().filter(entries_all)
-        entries_others = [entry for entry in entries_all if entry not in transactions_all]
+        imported_entries_nodup_others = [entry for entry in imported_entries_nodup if entry not in transactions_all]
 
+        print('[DEBUG] Predicing transactions for imported entries...')
         classifier = MetaTransactionClassifier(options_map)
-        pred_entries = classifier.train_predict(transactions_all)
-        pred_entries = PredictedTransactionFilter().filter(pred_entries)
+        pred_txns = classifier.train_predict(transactions_all)
+        pred_txns = PredictedTransactionFilter().filter(pred_txns)
 
-        saver.save(pred_entries, dryrun=True)
+        new_entries = data.sorted([*pred_txns, *imported_entries_nodup_others])
+        saver.save(new_entries, dryrun=True)
 
-        return pred_entries
+        return new_entries

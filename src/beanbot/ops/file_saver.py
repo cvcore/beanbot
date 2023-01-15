@@ -8,25 +8,25 @@ from collections import defaultdict
 from beancount.core import data
 from beancount.parser import printer
 
-from beanbot.common.types import Transactions
-from beanbot.ops.extractor import TransactionRecordSourceAccountExtractor, TransactionSourceFilenameExtractor
+from beanbot.ops.extractor import DirectiveRecordSourceAccountExtractor, DirectiveSourceFilenameExtractor
 from beanbot.ops.filter import PredictedTransactionFilter, BalancedTransactionFilter
 from beanbot.common.collections import defaultdictstateless
 
 
-class TransactionFileSaver():
+
+class EntryFileSaver():
 
     def __init__(self, default_location) -> None:
         self._account_to_filename = defaultdictstateless(lambda: default_location)
-        self._sa_extractor = TransactionRecordSourceAccountExtractor()
-        self._filename_extractor = TransactionSourceFilenameExtractor()
+        self._sa_extractor = DirectiveRecordSourceAccountExtractor()
+        self._filename_extractor = DirectiveSourceFilenameExtractor()
         self._pred_txn_filter = PredictedTransactionFilter()
 
-    def learn_filename(self, transactions: Transactions):
+    def learn_filename(self, entries: data.Entries):
         """Learn the filing conventions from historic transactions."""
 
-        source_accounts = self._sa_extractor.extract(transactions)
-        filenames = self._filename_extractor.extract(transactions)
+        source_accounts = self._sa_extractor.extract(entries)
+        filenames = self._filename_extractor.extract(entries)
 
         for account, filename in zip(source_accounts, filenames):
             if account == '' or filename == '':
@@ -37,21 +37,20 @@ class TransactionFileSaver():
             else:
                 self._account_to_filename[account] = filename
 
-    def save(self, transactions: Transactions, dryrun=False):
+    def save(self, entries: data.Entries, dryrun=False):
         """Append each transactions into the end of their correponding files."""
 
-        new_transactions = self._pred_txn_filter.filter(transactions)
-        source_accounts = self._sa_extractor.extract(new_transactions)
-        corr_filenames = [self._account_to_filename[sa] for sa in source_accounts]
-        transactions_to_append: Dict[str, Transactions] = defaultdict(list)
+        source_accounts = self._sa_extractor.extract(entries)
+        filenames = [self._account_to_filename[sa] for sa in source_accounts]
+        entries_to_append: Dict[str, data.Entries] = defaultdict(list)
 
-        for new_txn, filename in zip(new_transactions, corr_filenames):
-            transactions_to_append[filename].append(new_txn)
+        for new_txn, filename in zip(entries, filenames):
+            entries_to_append[filename].append(new_txn)
 
-        for filename, transactions in transactions_to_append.items():
-            self._save_transactions_to_file(transactions, filename, dryrun)
+        for filename, entries in entries_to_append.items():
+            self._append_entries_to_file(entries, filename, dryrun)
 
-    def _save_transactions_to_file(self, transactions: Transactions, filename: str, dryrun: bool=False):
+    def _append_entries_to_file(self, transactions: data.Entries, filename: str, dryrun: bool=False):
         """Save a list of `Transaction`s into `filename`"""
 
         if dryrun:

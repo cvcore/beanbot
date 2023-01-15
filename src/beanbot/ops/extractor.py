@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from datetime import date
 import numpy as np
 from beancount.core import interpolate
-from beancount.core.data import Transaction, Directive, Entries
+from beancount.core.data import Transaction, Directive, Entries, Balance
 from beancount.core import data
 import regex as re
 from beanbot.common.configs import BeanbotConfig
@@ -144,6 +144,18 @@ class BalanceRecordSourceAccountExtractor(_BaseExtractor):
         return entry.account
 
 
+class BalanceSourceFilenameExtractor(_BaseExtractor):
+    """Extract account where the balance records are generated"""
+
+    def _extract_one_impl(self, entry: data.Balance) -> str:
+        try:
+            filename = entry.meta['filename']
+        except KeyError:
+            filename = ''
+
+        return filename
+
+
 ################# Extractor for Directives #################
 
 
@@ -153,7 +165,7 @@ class _BaseDirectiveExtractor(_BaseExtractor):
     The user should not instantiate this class directly, but use the subclasses instead."""
 
     # You should extend this list with the supported entry types, when you implement a new extractor for a new entry type.
-    SUPPORTED_ENTRY_TYPES = [Transaction]
+    SUPPORTED_ENTRY_TYPES = [Transaction, Balance]
 
     def __init__(self):
         self._extractor_cache = {}
@@ -161,7 +173,9 @@ class _BaseDirectiveExtractor(_BaseExtractor):
     def extract_one(self, entry: Directive) -> str:
         """Extract a list of string descriptions from a list of Entries"""
         assert self.__class__.__name__ != 'BaseDirectiveExtractor', "Calling from base class is not allowed"
-        assert type(entry) in self.SUPPORTED_ENTRY_TYPES, f"Unsupported entry type: {type(entry)}"
+        if type(entry) not in self.SUPPORTED_ENTRY_TYPES:
+            print(f"[Warning] Unsupported entry type: {type(entry)}. Returning empty string!")
+            return ''
 
         entry_class_name = entry.__class__.__name__ # Class name of the entry, e.g. Transaction / Balance / Open ...
         extractor_type = self.__class__.__name__ # Class name of the extractor, e.g. EntrySourceAccountExtractor / EntrySourceFilenameExtractor
