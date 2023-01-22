@@ -2,6 +2,7 @@
 
 """This module implements the Filer class which is responsible for saving / appending each new transactions into the corresponding files."""
 
+import sys
 from email.policy import default
 from typing import Dict, List
 from collections import defaultdict
@@ -55,7 +56,7 @@ class EntryFileSaver():
 
         if dryrun:
             print(f"*************************************\n[Dryrun] The following transactions will be saved to\n{filename}\n*************************************")
-            printer.print_entries(transactions)
+            printer.print_entries(transactions, file=sys.stdout)
         else:
             with open(filename, 'a') as file:
                 printer.print_entries(transactions, file=file)
