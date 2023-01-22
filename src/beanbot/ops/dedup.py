@@ -5,7 +5,7 @@ from beancount.parser import printer
 import datetime
 
 class BaseDeduplicator(object):
-    """Base class for deduplicators"""
+    """Base class for deduplicators. Currently only implement deduplication for transactions."""
 
     def __init__(self, window_days_head, window_days_tail) -> None:
         self._window_days_head = window_days_head
@@ -16,6 +16,9 @@ class BaseDeduplicator(object):
         raise NotImplementedError()
 
     def _find_duplicated_pairs(self, entries, imported_entries, window_days_head=0, window_days_tail=0) -> List[Tuple[Transaction, Transaction]]:
+        """Find duplicated pairs of entries. Returns a list of (entry, imported_entry) pairs which forms a duplication.
+        This method tries to find duplicated entries in `imported_entries` by comparing them with entries in `entries`,
+        which are within a time window of `window_days_head` days before and `window_days_tail` days after the date of the imported entry."""
 
         window_head = datetime.timedelta(days=window_days_head)
         window_tail = datetime.timedelta(days=window_days_tail + 1)
@@ -31,7 +34,7 @@ class BaseDeduplicator(object):
         return duplicates
 
     def deduplicate(self, entries: List[Transaction], imported_entries: List[Transaction]) -> Tuple[List[Transaction], List[Transaction]]:
-        """De-duplicate the imported entries. Returns a tuple of (duplicated entries, non-duplicated entries). Requires all entries are sorted by date."""
+        """De-duplicate the imported entries. Returns a tuple of (duplicated entries, non-duplicated entries). Requires all input entries are sorted by date."""
 
         assert all(isinstance(entry, Transaction) for entry in entries), "All entries must be transactions"
         assert all(isinstance(imported_entries, Transaction) for imported_entries in imported_entries), "All imported entries must be transactions"
