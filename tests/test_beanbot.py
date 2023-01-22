@@ -16,7 +16,7 @@ from beanbot.classifier.meta_transaction_classifier import \
 from beanbot.common.configs import BeanbotConfig
 from beanbot.common.types import Transactions
 from beanbot.ops.extractor import TransactionDescriptionExtractor
-from beanbot.ops.file_saver import TransactionFileSaver
+from beanbot.ops.file_saver import EntryFileSaver
 from beanbot.tests.dataloader import DataLoader
 from beanbot.tests.metrics import PrecisionScore
 from beanbot.vectorizer.bag_of_words_vectorizer import BagOfWordVectorizer
@@ -30,7 +30,7 @@ class TestBeanBot(unittest.TestCase):
 
     def test_vectorizer(self):
 
-        loader = DataLoader(TEST_FILE_SAMPLE, n_test_cases=3)
+        loader = DataLoader(TEST_FILE_SAMPLE, ratio_removal=0.3)
 
         for test_set in loader.load():
             transactions = test_set.input_transactions
@@ -48,7 +48,7 @@ class TestBeanBot(unittest.TestCase):
             print(f"passed")
 
     def test_classifier(self):
-        loader = DataLoader(TEST_FILE_SAMPLE, n_test_cases=3)
+        loader = DataLoader(TEST_FILE_SAMPLE, ratio_removal=0.3)
 
         for test_set in loader.load():
             input_transactions = test_set.input_transactions
@@ -60,7 +60,7 @@ class TestBeanBot(unittest.TestCase):
             classifier = MetaTransactionClassifier(options_map)
             global_config = BeanbotConfig.get_global()
             fallback_txn_file = global_config['fallback-transaction-file']
-            file_saver = TransactionFileSaver(default_location=fallback_txn_file)
+            file_saver = EntryFileSaver(default_location=fallback_txn_file)
             file_saver.learn_filename(input_transactions)
             test_set.pred_transactions = classifier.train_predict(input_transactions)
             assert input_transactions == input_transactions_safeguard, "Classifier is not supposed to modify transactions in place!"
