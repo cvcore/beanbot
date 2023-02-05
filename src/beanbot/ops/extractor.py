@@ -40,9 +40,19 @@ class _BaseExtractor(object):
 class TransactionDescriptionExtractor(_BaseExtractor):
     """Extract descriptions from transactions"""
 
+    def __init__(self, prefer_payee=True) -> None:
+        super().__init__()
+        self._prefer_payee = prefer_payee
+
     def _extract_one_impl(self, entry: Transaction) -> str:
         replace_none = lambda s: s if s is not None else ''
-        return f"{replace_none(entry.payee)}\r{replace_none(entry.narration)}"
+        # return f"{replace_none(entry.payee)}\r{replace_none(entry.narration)}"
+        if entry.payee is not None:
+            if self._prefer_payee:
+                return entry.payee
+            else:
+                return f"{replace_none(entry.payee)}\r{replace_none(entry.narration)}"
+        return replace_none(entry.narration)
 
 
 class _TransactionRegExpExtractor(_BaseExtractor):
