@@ -7,6 +7,8 @@ import numpy as np
 from beanbot.tests.dataset import Dataset
 from beanbot.ops.extractor import TransactionCategoryAccountExtractor, TransactionDescriptionExtractor
 
+from pandas import DataFrame
+
 class AbstractMetrics(ABC):
 
     @classmethod
@@ -42,13 +44,23 @@ class PrecisionScore(AbstractMetrics):
         good_predictions = np.array([(gt == pred) for (gt, pred) in zip(gt_accounts, pred_accounts)])
         idx_bad_predictions = (1 - good_predictions).nonzero()[0]
 
+        # Print bad cases
         if len(idx_bad_predictions) > 0:
             print(f"Bad cases discovered!\nDate\tDescription\tPrediction\tGroundtruth\tTags")
             descriptions = TransactionDescriptionExtractor().extract(dataset.input_transactions)
-        replace_empty = lambda s: '(empty)' if s == '' else s
-        for idx in idx_bad_predictions:
-            print(f"{replace_empty(dataset.pred_transactions[idx].date)}\t{replace_empty(descriptions[idx])}\t{replace_empty(pred_accounts[idx])}\t{replace_empty(gt_accounts[idx])}\t{replace_empty(dataset.pred_transactions[idx].tags)}")
 
+            replace_empty = lambda s: '(empty)' if s == '' else s
+            transactions_table = {
+                "date": [replace_empty(t.date) for t in dataset.pred_transactions],
+                "description": [replace_empty(d.replace("\n", "").replace("\r", "")) for d in descriptions],
+                "prediction": [replace_empty(a) for a in pred_accounts],
+                "groundtruth": [replace_empty(a) for a in gt_accounts],
+                "tags": [replace_empty(t.tags) for t in dataset.pred_transactions],
+                "is_bad": [i in idx_bad_predictions for i in range(n_transactions)]
+            }
+
+            transactions_df = DataFrame(transactions_table)
+            transactions_df.to_csv("bad_cases.csv")
 
         # Only calculate matrix on masked elements
         n_good_predictions = np.sum(good_predictions * masks)
