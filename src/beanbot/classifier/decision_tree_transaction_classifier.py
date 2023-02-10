@@ -3,6 +3,9 @@
 
 from typing import Dict
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.ensemble import RandomForestClassifier
 from beancount.ingest.extract import print_extracted_entries
 from beancount.parser.printer import print_entries
 import numpy as np
@@ -22,7 +25,10 @@ class DecisionTreeTransactionClassifier(AbstractTransactionClassifier):
     def __init__(self, options_map: Dict):
 
         super().__init__(options_map, add_tags={self.ADD_TAG})
-        self._classifier = DecisionTreeClassifier()
+        # self._classifier = DecisionTreeClassifier()
+        # self._classifier = KNeighborsClassifier(n_neighbors=1)
+        # self._classifier = MLPClassifier(max_iter=1000, hidden_layer_sizes=(1000, 100), verbose=True)
+        self._classifier = RandomForestClassifier(n_estimators=200, max_depth=20, random_state=1, verbose=True)
         self._vectorizer = BagOfWordVectorizer()
         self._gt_label = None
 

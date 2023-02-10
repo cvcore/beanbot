@@ -9,7 +9,7 @@ from beanbot.vectorizer.abstract_vectorizer import AbstractVectorizer, Vectorize
 from beanbot.ops.extractor import TransactionCategoryAccountExtractor, TransactionDescriptionExtractor, TransactionDateExtractor, TransactionRecordSourceAmountExtractor
 from beanbot.ops.hashing import BiDirectionalHash
 from beanbot.common.types import Postings, Transactions
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 
 class BagOfWordVectorizer(AbstractVectorizer):
@@ -26,7 +26,8 @@ class BagOfWordVectorizer(AbstractVectorizer):
         self._amount_extractor = TransactionRecordSourceAmountExtractor() if extract_amount else None
         self._trans_desc_extractor = TransactionDescriptionExtractor()
 
-        self._vectorizer = CountVectorizer()
+        self._vectorizer = CountVectorizer(ngram_range=(3, 3), analyzer='char')
+        # self._vectorizer = TfidfVectorizer(ngram_range=(1, 1))
         self._bd_hash = BiDirectionalHash()
 
         self._is_trained = False
@@ -41,13 +42,13 @@ class BagOfWordVectorizer(AbstractVectorizer):
         # If a text corpus contains no word in the dictionary, the vectorizer will return an all-zero vector. We mark this as not learnable
         learnable_mask &= (trans_desc_vec.sum(-1) != 0)
 
-        if self._date_extractor is not None:
-            date_vec = np.array(self._date_extractor.extract(transactions))[:, None]
-            trans_desc_vec = np.concatenate([trans_desc_vec, date_vec], axis=-1)
-        if self._amount_extractor is not None:
-            amount_vec = np.array(self._amount_extractor.extract(transactions))[:, None]
-            trans_desc_vec = np.concatenate([trans_desc_vec, amount_vec], axis=-1)
-            learnable_mask &= (amount_vec[:, 0] != 0.)
+        # if self._date_extractor is not None:
+        #     date_vec = np.array(self._date_extractor.extract(transactions))[:, None]
+        #     trans_desc_vec = np.concatenate([trans_desc_vec, date_vec], axis=-1)
+        # if self._amount_extractor is not None:
+        #     amount_vec = np.array(self._amount_extractor.extract(transactions))[:, None]
+        #     trans_desc_vec = np.concatenate([trans_desc_vec, amount_vec], axis=-1)
+        #     learnable_mask &= (amount_vec[:, 0] != 0.)
 
         cat_accounts = self._cat_account_extractor.extract(transactions)
         cat_accounts_ind = self._bd_hash.hash(cat_accounts)
