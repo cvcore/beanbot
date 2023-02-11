@@ -47,12 +47,34 @@ class TransactionDescriptionExtractor(_BaseExtractor):
     def _extract_one_impl(self, entry: Transaction) -> str:
         replace_none = lambda s: s if s is not None else ''
         # return f"{replace_none(entry.payee)}\r{replace_none(entry.narration)}"
+        result:str = ''
         if entry.payee is not None:
             if self._prefer_payee:
-                return entry.payee
+                result = entry.payee
             else:
-                return f"{replace_none(entry.payee)}\r{replace_none(entry.narration)}"
-        return replace_none(entry.narration)
+                result = f"{replace_none(entry.payee)} {replace_none(entry.narration)}"
+        else:
+            result = replace_none(entry.narration)
+        # remove hyphens connecting words
+        # result = re.sub(r'(?<=\w)-(?=\w)', '', result)
+        # # remove dots between words
+        # result = re.sub(r'(?<=\w)\.(?=\w)', '', result)
+        # remove dots in form of abbreviations e.g. a.b.c.d.
+        result = result.lower()
+
+        result = re.sub(r'((?<=(\P{L}|^)\p{L})\.(?=\p{L}(\P{L}|$)))+', '', result)
+        # remove all non-alphanumeric characters with whitespace
+        # result = re.sub('[^0-9a-zA-Z]+', ' ', result).lower()
+        result = re.sub(r'(\p{Z}|\p{S}|\p{P})+', ' ', result)
+
+        # process european texts
+        result = result.replace("ä", "ae")
+        result = result.replace("ö", "oe")
+        result = result.replace("ü", "ue")
+        result = result.replace("ß", "ss")
+        result = result.replace("é", "e")
+
+        return result
 
 
 class _TransactionRegExpExtractor(_BaseExtractor):

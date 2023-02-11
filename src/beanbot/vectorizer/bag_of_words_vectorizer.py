@@ -26,8 +26,8 @@ class BagOfWordVectorizer(AbstractVectorizer):
         self._amount_extractor = TransactionRecordSourceAmountExtractor() if extract_amount else None
         self._trans_desc_extractor = TransactionDescriptionExtractor()
 
-        self._vectorizer = CountVectorizer(ngram_range=(3, 3), analyzer='char')
-        # self._vectorizer = TfidfVectorizer(ngram_range=(1, 1))
+        # self._vectorizer = CountVectorizer(ngram_range=(3, 3), analyzer='char')
+        self._vectorizer = TfidfVectorizer(ngram_range=(3, 5), analyzer='char')
         self._bd_hash = BiDirectionalHash()
 
         self._is_trained = False

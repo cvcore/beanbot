@@ -46,7 +46,7 @@ class PrecisionScore(AbstractMetrics):
 
         # Print bad cases
         if len(idx_bad_predictions) > 0:
-            print(f"Bad cases discovered!\nDate\tDescription\tPrediction\tGroundtruth\tTags")
+            print(f"Bad cases discovered!")
             descriptions = TransactionDescriptionExtractor().extract(dataset.input_transactions)
 
             replace_empty = lambda s: '(empty)' if s == '' else s
@@ -61,6 +61,9 @@ class PrecisionScore(AbstractMetrics):
 
             transactions_df = DataFrame(transactions_table)
             transactions_df.to_csv("bad_cases.csv")
+
+            transactions_bad = transactions_df[transactions_df.is_bad == True]
+            print(transactions_bad)
 
         # Only calculate matrix on masked elements
         n_good_predictions = np.sum(good_predictions * masks)
