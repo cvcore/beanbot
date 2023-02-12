@@ -55,19 +55,22 @@ class TransactionDescriptionExtractor(_BaseExtractor):
                 result = f"{replace_none(entry.payee)} {replace_none(entry.narration)}"
         else:
             result = replace_none(entry.narration)
-        # remove hyphens connecting words
-        # result = re.sub(r'(?<=\w)-(?=\w)', '', result)
-        # # remove dots between words
-        # result = re.sub(r'(?<=\w)\.(?=\w)', '', result)
-        # remove dots in form of abbreviations e.g. a.b.c.d.
+
         result = result.lower()
 
+        # remove hyphens connecting words
+        # result = re.sub(r'(?<=\w)-(?=\w)', '', result)
+
+        # remove dots between words
+        # result = re.sub(r'(?<=\w)\.(?=\w)', '', result)
+
+        # remove dots in form of abbreviations e.g. a.b.c.d
         result = re.sub(r'((?<=(\P{L}|^)\p{L})\.(?=\p{L}(\P{L}|$)))+', '', result)
-        # remove all non-alphanumeric characters with whitespace
-        # result = re.sub('[^0-9a-zA-Z]+', ' ', result).lower()
+
+        # normalize remaining symbols & whitespaces
         result = re.sub(r'(\p{Z}|\p{S}|\p{P})+', ' ', result)
 
-        # process european texts
+        # normalization: replace european texts with english ones
         result = result.replace("ä", "ae")
         result = result.replace("ö", "oe")
         result = result.replace("ü", "ue")
