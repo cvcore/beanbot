@@ -51,6 +51,13 @@ class TransactionFilter(BaseFilter):
         return isinstance(entry, data.Transaction)
 
 
+class NotTransactionFilter(TransactionFilter):
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._inverse_condition = True
+
+
 class BalancedTransactionFilter(TransactionFilter):
     """Transaction filter to remove all unbalanced transactions"""
 

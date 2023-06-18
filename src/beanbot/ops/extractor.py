@@ -209,7 +209,7 @@ class _BaseDirectiveExtractor(_BaseExtractor):
         """Extract a list of string descriptions from a list of Entries"""
         assert self.__class__.__name__ != 'BaseDirectiveExtractor', "Calling from base class is not allowed"
         if type(entry) not in self.SUPPORTED_ENTRY_TYPES:
-            print(f"[Warning] Unsupported entry type: {type(entry)}. Returning empty string!")
+            # print(f"[Debug] Unsupported entry type: {type(entry)}. Returning empty string!")
             return ''
 
         entry_class_name = entry.__class__.__name__ # Class name of the entry, e.g. Transaction / Balance / Open ...

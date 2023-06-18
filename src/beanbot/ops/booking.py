@@ -14,7 +14,7 @@ def add_postings_auto_balance(transactions: List[data.Transaction], accounts: Li
     """Detect unbalanced transaction from `transactions` and insert automatically postings from `accounts` to balance the transaction.
     Balanced transactions will be ignored."""
 
-    transactions = deepcopy(transactions)
+    # transactions = deepcopy(transactions)
 
     for idx, (txn, account) in enumerate(zip(transactions, accounts)):
         if account is None or is_balanced(txn, options_map):
