@@ -4,49 +4,66 @@ from typing import Union
 import beancount.core.data as bd
 from recordclass import recordclass
 
-MAP_TO_MUTABLE_DIRECTIVE = {}
+
+_MAP_TO_MUTABLE_DIRECTIVE = {}
+_MAP_TO_IMMUTABLE_DIRECTIVE = {}
 
 
 def _from_immutable(cls: type, obj: bd.Directive) -> "MutableDirective":
     """patched method to recursively convert an immutable object to its mutable counterpart"""
-    cls_mutable = MAP_TO_MUTABLE_DIRECTIVE[cls]
+    cls_mutable = _MAP_TO_MUTABLE_DIRECTIVE[cls]
     fields_dict = dict()
     for key, value in obj._asdict().items():
-        if type(value) in MAP_TO_MUTABLE_DIRECTIVE:
+        if type(value) in _MAP_TO_MUTABLE_DIRECTIVE:
             fields_dict[key] = _from_immutable(type(value), value)
         elif isinstance(value, list):
-            value = [v if type(v) not in MAP_TO_MUTABLE_DIRECTIVE else _from_immutable(type(v), v) for v in value]
+            value = [v if type(v) not in _MAP_TO_MUTABLE_DIRECTIVE else _from_immutable(type(v), v) for v in value]
             fields_dict[key] = value
         else:
             fields_dict[key] = value
     return cls_mutable(**fields_dict)
 
 
-def make_mutable_type(immutable_type: type) -> type:
-    # iteratively change the type annotations of the fields to be mutable
-    # add method to convert to mutable type
-    # add method to convert back to immutable type
+def _to_immutable(obj: "MutableDirective") -> bd.Directive:
+    """patched method to recursively convert a mutable object to its immutable counterpart"""
+    cls = type(obj)
+    cls_immutable = _MAP_TO_IMMUTABLE_DIRECTIVE[cls]
+    fields_dict = dict()
+    for key, value in obj._asdict().items():
+        if type(value) in _MAP_TO_IMMUTABLE_DIRECTIVE:
+            fields_dict[key] = _to_immutable(value)
+        elif isinstance(value, list):
+            value = [v if type(v) not in _MAP_TO_IMMUTABLE_DIRECTIVE else _to_immutable(v) for v in value]
+            fields_dict[key] = value
+        else:
+            fields_dict[key] = value
+    return cls_immutable(**fields_dict)
+
+
+def _make_mutable_type(immutable_type: type) -> type:
     mutable_type = recordclass("Mutable" + immutable_type.__name__, immutable_type._fields)
     mutable_type.from_immutable = _from_immutable
-    MAP_TO_MUTABLE_DIRECTIVE[immutable_type] = mutable_type
+    mutable_type.to_immutable = _to_immutable
+    _MAP_TO_MUTABLE_DIRECTIVE[immutable_type] = mutable_type
+    _MAP_TO_IMMUTABLE_DIRECTIVE[mutable_type] = immutable_type
 
     return mutable_type
 
 
-MutableOpen = make_mutable_type(bd.Open)
-MutableClose = make_mutable_type(bd.Close)
-MutableCommodity = make_mutable_type(bd.Commodity)
-MutablePad = make_mutable_type(bd.Pad)
-MutableBalance = make_mutable_type(bd.Balance)
-MutablePosting = make_mutable_type(bd.Posting)
-MutableTransaction = make_mutable_type(bd.Transaction)
-MutableTxnPosting = make_mutable_type(bd.TxnPosting)
-MutableNote = make_mutable_type(bd.Note)
-MutableEvent = make_mutable_type(bd.Event)
-MutableQuery = make_mutable_type(bd.Query)
-MutablePrice = make_mutable_type(bd.Price)
-MutableDocument = make_mutable_type(bd.Document)
-MutableCustom = make_mutable_type(bd.Custom)
+MutableOpen = _make_mutable_type(bd.Open)
+MutableClose = _make_mutable_type(bd.Close)
+MutableCommodity = _make_mutable_type(bd.Commodity)
+MutablePad = _make_mutable_type(bd.Pad)
+MutableBalance = _make_mutable_type(bd.Balance)
+MutablePosting = _make_mutable_type(bd.Posting)
+MutableTransaction = _make_mutable_type(bd.Transaction)
+MutableTxnPosting = _make_mutable_type(bd.TxnPosting)
+MutableNote = _make_mutable_type(bd.Note)
+MutableEvent = _make_mutable_type(bd.Event)
+MutableQuery = _make_mutable_type(bd.Query)
+MutablePrice = _make_mutable_type(bd.Price)
+MutableDocument = _make_mutable_type(bd.Document)
+MutableCustom = _make_mutable_type(bd.Custom)
 
 
 MutableDirective = Union[
@@ -65,6 +82,24 @@ MutableDirective = Union[
     MutableDocument,
     MutableCustom,
 ]
+
+
+ALL_MUTABLE_DIRECTIVES = (
+    MutableOpen,
+    MutableClose,
+    MutableCommodity,
+    MutablePad,
+    MutableBalance,
+    MutablePosting,
+    MutableTransaction,
+    MutableTxnPosting,
+    MutableNote,
+    MutableEvent,
+    MutableQuery,
+    MutablePrice,
+    MutableDocument,
+    MutableCustom,
+)
 
 
 def make_mutable(obj: bd.Directive) -> MutableDirective:
