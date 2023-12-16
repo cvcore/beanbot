@@ -3,7 +3,6 @@ from __future__ import annotations
 import datetime
 from decimal import Decimal
 from functools import cache
-from sys import maxsize
 from types import NoneType, UnionType
 from typing import Any, Callable, Dict, List, Optional, Tuple, _UnionGenericAlias
 import uuid
