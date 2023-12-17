@@ -97,6 +97,7 @@ class InternalTransferDeduplicator(BaseDeduplicator):
         if duplicate_found:
             # try to search for a matching posting from the existing entry
             account_matches = False
+
             for posting in entry.postings:
                 if posting.account == account_entry:
                     continue # skip the source account
@@ -105,7 +106,7 @@ class InternalTransferDeduplicator(BaseDeduplicator):
                     break
 
             if not account_matches:
-                pprint(f"[Warning] Possible wrong posting(s) detected: {printer.format_entry(entry)}. The posting should contain: {account_imported_entry}")
+                print(f"[Warning] Possible wrong posting(s) detected: {printer.format_entry(entry)}The posting should contain: {account_imported_entry}")
 
             return True
 
@@ -170,8 +171,10 @@ class SimilarEntryDeduplicator(BaseDeduplicator):
 class Deduplicator():
 
     def __init__(self, window_days_head, window_days_tail, max_date_difference) -> None:
+        """Initialize the deduplicator with a list of deduplicators. The deduplicators are applied in the order they are given."""
+
         self._deduplicators = [
-            SimilarEntryDeduplicator(0, 0),
+            SimilarEntryDeduplicator(0, 0),  # For similar entries, we don't need a window
             InternalTransferDeduplicator(window_days_head, window_days_tail, max_date_difference)
         ]
 

@@ -6,13 +6,11 @@ from beancount.loader import load_file
 from beancount.core.data import Entries
 from beancount.ingest.importer import ImporterProtocol
 from beanbot.classifier.meta_transaction_classifier import MetaTransactionClassifier
-from beancount.core.data import Transaction
 from beancount.core import data
-from beanbot.ops.filter import PredictedTransactionFilter, TransactionFilter
+from beanbot.ops.filter import NotTransactionFilter, TransactionFilter
 from beanbot.ops.file_saver import EntryFileSaver
-from beanbot.ops.dedup import InternalTransferDeduplicator
+from beanbot.ops.dedup import Deduplicator
 from beanbot.common.configs import BeanbotConfig
-from beancount.ingest.similar import find_similar_entries
 from beancount.parser import printer
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -62,6 +60,9 @@ def apply_hooks(importer: ImporterProtocol, hooks: List[ImporterHook]) -> Import
     return importer
 
 
+def _test_in_0(entries_0, entries_1):
+    print(f"[Debug] {len([e for e in entries_1 if e in entries_0])}")
+
 class BeanBotPredictionHook(ImporterHook):
     """Interface for an importer hook."""
 
@@ -83,40 +84,42 @@ class BeanBotPredictionHook(ImporterHook):
         main_file = global_config['main-file']
         _, _, options_map = load_file(main_file)
 
-        deduplicator = InternalTransferDeduplicator(
+        deduplicator = Deduplicator(
             window_days_head=global_config['dedup-window-days'],
             window_days_tail=global_config['dedup-window-days'],
             max_date_difference=global_config['dedup-window-days']
         )
 
+        duplicated_entries, imported_entries = deduplicator.deduplicate(existing_entries, imported_entries)
+
         transactions_existing = TransactionFilter().filter(existing_entries)
         transactions_imported = TransactionFilter().filter(imported_entries)
-        other_entries_imported = [entry for entry in imported_entries if entry not in transactions_imported]
+        other_entries_imported = NotTransactionFilter().filter(imported_entries)
 
-        transactions_duplicated, transactions_non_duplicated = deduplicator.deduplicate(transactions_existing, transactions_imported)
-        imported_entries_nodup = data.sorted([*transactions_non_duplicated, *other_entries_imported])
         # Debug
+        print('------------------------')
         print("Duplicated transactions:")
-        printer.print_entries(transactions_duplicated)
+        printer.print_entries(duplicated_entries)
         print('------------------------')
         print("Non-duplicated entries:")
-        printer.print_entries(imported_entries_nodup)
+        printer.print_entries(imported_entries)
         print('------------------------')
 
         print('[DEBUG] Learning filename for existing entries...')
         saver = EntryFileSaver(global_config['fallback-transaction-file'])
         saver.learn_filename(existing_entries)
 
-        entries_all = data.sorted([*imported_entries_nodup, *existing_entries])
-        transactions_all = TransactionFilter().filter(entries_all)
-        imported_entries_nodup_others = [entry for entry in imported_entries_nodup if entry not in transactions_all]
 
         print('[DEBUG] Predicing transactions for imported entries...')
         classifier = MetaTransactionClassifier(options_map)
-        pred_txns = classifier.train_predict(transactions_all)
-        pred_txns = PredictedTransactionFilter().filter(pred_txns)
+        classifier.train(transactions_existing)
+        pred_txns = []
+        if len(transactions_imported) > 0:
+            pred_txns = classifier.predict(transactions_imported)
+        pred_txns.extend(other_entries_imported)
 
-        new_entries = data.sorted([*pred_txns, *imported_entries_nodup_others])
-        saver.save(new_entries, dryrun=True)
+        new_entries = data.sorted(pred_txns)
+
+        saver.save(new_entries, dryrun=False)
 
         return new_entries
