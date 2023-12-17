@@ -5,7 +5,7 @@ plugin "beancount.plugins.implicit_prices"
 2000-01-01 custom "beanbot-config" "main-file" "tests/data/main.bean"
 2000-01-01 custom "beanbot-config" "regex-source-account" "((Liabilities:Credit)|(Assets:Checking))"
 2000-01-01 custom "beanbot-config" "regex-category-account" "(Expenses|Income)"
-2000-01-01 custom "beanbot-config" "dedup-window-days" 2
+2000-01-01 custom "beanbot-config" "dedup-window-days" "2"
 
 ;; Sample accounts
 
