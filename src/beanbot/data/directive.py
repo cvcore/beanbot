@@ -1,6 +1,6 @@
 """Make mutable versions of the beancount directives for easier modification."""
 
-from typing import Union
+from typing import List, Union
 import beancount.core.data as bd
 from recordclass import recordclass
 
@@ -82,6 +82,8 @@ MutableDirective = Union[
     MutableDocument,
     MutableCustom,
 ]
+
+MutableEntries = List[MutableDirective]
 
 
 ALL_MUTABLE_DIRECTIVES = (
