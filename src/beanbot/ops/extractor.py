@@ -144,15 +144,36 @@ class TransactionDateExtractor(BaseExtractor):
 class _TransactionAmountExtractor(_TransactionRegExpExtractor):
     """Class for extracting account information from transactions"""
 
+    _EXTRACT_SIGN = False
+
     def _posting_amount_keep_one(self, postings: Postings) -> float:
         for p in postings:
             if self.match(p.account):
-                return np.sign(p.units.number)
+                if self._EXTRACT_SIGN:
+                    return np.sign(p.units.number)
+                return p.units.number
         return 0.
 
     def _extract_one_impl(self, entry: Transaction) -> float:
         return self._posting_amount_keep_one(entry.postings)
 
+
+class TransactionCategoryAmountSignExtractor(_TransactionAmountExtractor):
+
+    _EXTRACT_SIGN = True
+
+    def __init__(self):
+        regex_category_account = BeanbotConfig.get_global()['regex-category-account']
+        super().__init__(regex_category_account)
+
+
+class TransactionRecordSourceAmountSignExtractor(_TransactionAmountExtractor):
+
+    _EXTRACT_SIGN = True
+
+    def __init__(self):
+        regex_record_source_account = BeanbotConfig.get_global()['regex-source-account']
+        super().__init__(regex_record_source_account)
 
 class TransactionCategoryAmountExtractor(_TransactionAmountExtractor):
 
@@ -232,7 +253,7 @@ class BaseDirectiveExtractor(BaseExtractor):
         """Extract a list of string descriptions from a list of Entries"""
         assert self.__class__.__name__ != 'BaseDirectiveExtractor', "Calling from base class is not allowed"
         if type(entry) not in self.SUPPORTED_ENTRY_TYPES:
-            print(f"[Debug] Unsupported entry type: {type(entry)}. Returning empty string!")
+            # print(f"[Debug] Unsupported entry type: {type(entry)}. Returning empty string!")
             return ''
 
         entry_class_name = entry.__class__.__name__ # Class name of the entry, e.g. Transaction / Balance / Open ...
