@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional, Set
 import uuid
 from beancount.core.data import Entries
 from beancount.loader import load_file
 from pandas import DataFrame
 
-from beanbot.data.directive import MutableDirective, MutableEntries, make_mutable
+from beanbot.data.directive import MutableDirective, MutableEntries, MutableOpen, make_mutable
 from beancount.core.data import Directive
 
-from beanbot.ops.extractor import BaseDirectiveExtractor, BaseExtractor
+from beanbot.ops.extractor import BaseExtractor
 
 
 class BeanBotEntries:
-    """Class for storing the imported entries in the single place and providing an interface for easy access and modification."""
+    """Class for storing the imported entries in the single place and providing the indexing functionalities."""
 
     def __init__(self, entries: Entries, errors: List, options_map: Dict, extra_extractors: Dict[str, BaseExtractor] = None) -> None:
         """Create a collection of beancount entries.
@@ -65,6 +65,12 @@ class BeanBotEntries:
         if force_immutable:
             return [entry.to_immutable() for entry in self._entries]
         return self._entries
+
+    def get_unique_values(self, key: str, entry_type: Optional[type] = None) -> Set:
+        return set(self.as_dataframe(entry_type, [key]).unique())
+
+    def get_opened_accounts(self) -> Set[str]:
+        return set([entry.account for entry in self._entries if isinstance(entry, MutableOpen)])
 
     # Conversions
 
