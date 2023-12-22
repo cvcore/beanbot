@@ -235,6 +235,15 @@ class BalanceSourceFilenameExtractor(BaseExtractor):
         return filename
 
 
+################# Extractor for Open directives #################
+
+class OpenCategoryAccountExtractor(BaseExtractor):
+    """Extract account where the balance records are generated"""
+
+    def _extract_one_impl(self, entry: data.Open) -> str:
+        return entry.account
+
+
 ################# Extractor for Directives #################
 
 
@@ -243,18 +252,12 @@ class BaseDirectiveExtractor(BaseExtractor):
     This class with automatically call the extractor based on the type of the entry.
     The user should not instantiate this class directly, but use the subclasses instead."""
 
-    # You should extend this list with the supported entry types, when you implement a new extractor for a new entry type.
-    SUPPORTED_ENTRY_TYPES = [Transaction, Balance, MutableTransaction, MutableBalance]
-
     def __init__(self):
         self._extractor_cache = {}
 
     def extract_one(self, entry: Directive) -> str:
         """Extract a list of string descriptions from a list of Entries"""
         assert self.__class__.__name__ != 'BaseDirectiveExtractor', "Calling from base class is not allowed"
-        if type(entry) not in self.SUPPORTED_ENTRY_TYPES:
-            # print(f"[Debug] Unsupported entry type: {type(entry)}. Returning empty string!")
-            return ''
 
         entry_class_name = entry.__class__.__name__ # Class name of the entry, e.g. Transaction / Balance / Open ...
         if entry_class_name.startswith("Mutable"):
@@ -264,10 +267,17 @@ class BaseDirectiveExtractor(BaseExtractor):
         extractor_class = extractor_type.replace('Directive', entry_class_name, 1) # get the extractor class name to be used depending on the entry's and the extractor's class name
 
         if extractor_class not in self._extractor_cache:
-            self._extractor_cache[extractor_class] = globals()[extractor_class]()
-            print(f"[DEBUG] extractor class: {extractor_class} instantiated")
-        extractor = self._extractor_cache[extractor_class]
+            if extractor_class in globals():
+                self._extractor_cache[extractor_class] = globals()[extractor_class]()
+                print(f"[DEBUG] extractor class: {extractor_class} instantiated")
+            else:
+                print(f"[DEBUG] extractor class: {extractor_class} not found")
+                self._extractor_cache[extractor_class] = None
+                # breakpoint()
 
+        extractor = self._extractor_cache[extractor_class]
+        if extractor is None:
+            return ''
         return extractor.extract_one(entry)
 
 
