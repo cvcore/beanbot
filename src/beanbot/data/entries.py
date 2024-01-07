@@ -94,7 +94,8 @@ class BeanBotEntries:
         directive = self._entries[idx]
         for key, value in zip(keys, values):
             value_type = type(getattr(directive, key))
-            setattr(directive, key, value_type(value))
+            assert value_type == type(value), f"Got unexpected value type {type(value)}, expected {value_type}"
+            setattr(directive, key, value)
         self._extract_metadata(idx, remove_existing=True)
 
     # Adding
