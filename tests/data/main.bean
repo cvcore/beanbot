@@ -24,11 +24,11 @@ plugin "beancount.plugins.implicit_prices"
   Assets:Checking:SomeBank  -2.27 EUR
   Expenses:Others
 
-2018-12-28 * "badenova AG & Co. KG" "Account ID: 123456"
+2018-12-28 * "badenova AG & Co. KG" "Account ID: 123456" #_new_dt
   Assets:Checking:SomeBank    -670.00 EUR
   Expenses:Utilities:Electricity
 
-2018-12-30 * "The magic employer" "Your salary for December"
+2018-12-30 * "The magic employer" "Your salary for December" #_new_map
   Assets:Checking:SomeBank   757129.45 EUR
   Income:Company
 
