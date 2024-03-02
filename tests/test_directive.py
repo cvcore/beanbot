@@ -1,10 +1,10 @@
 import pytest
 
 from beanbot.data import directive
-from beanbot.data.entries import BeancountEntries
+from beanbot.data.entries import MutableEntriesView
 
 
-bc_entries = BeancountEntries.from_path("/Users/core/Development/Finance/beanbot/tests/data/main.bean")
+bc_entries = MutableEntriesView.load_from_file("/Users/core/Development/Finance/beanbot/tests/data/main.bean")
 
 def test_make_mutable():
     for ent in bc_entries.entries:
