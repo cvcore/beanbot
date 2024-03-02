@@ -32,7 +32,7 @@ class Importer(importer.ImporterProtocol):
         with open(f.name, encoding='latin-1') as csvfile:
 
             csv_header = [next(csvfile) for _ in range(6)]
-            account_info = parse.parse('"Kontonummer:";"{iban} / {type}"{}', csv_header[0] + ';')
+            account_info = parse.parse('"Kontonummer:";"{iban} / {type}"', csv_header[0].strip())
             assert account_info is not None
             account_iban = account_info['iban']
             # account_type = account_info['type']
