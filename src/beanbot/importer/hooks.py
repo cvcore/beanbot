@@ -117,6 +117,6 @@ class BeanBotPredictionHook(ImporterHook):
         pred_txns = PredictedTransactionFilter().filter(pred_txns)
 
         new_entries = data.sorted([*pred_txns, *imported_entries_nodup_others])
-        saver.save(new_entries, dryrun=True)
+        saver.save(new_entries, dryrun=False)
 
         return new_entries

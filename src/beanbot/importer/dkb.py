@@ -32,7 +32,7 @@ class Importer(importer.ImporterProtocol):
         with open(f.name, encoding='latin-1') as csvfile:
 
             csv_header = [next(csvfile) for _ in range(6)]
-            account_info = parse.parse('"Kontonummer:";"{iban} / {type}";', csv_header[0].strip())
+            account_info = parse.parse('"Kontonummer:";"{iban} / {type}"', csv_header[0].strip())
             assert account_info is not None
             account_iban = account_info['iban']
             # account_type = account_info['type']
@@ -42,7 +42,7 @@ class Importer(importer.ImporterProtocol):
             date_begin = dateutil.parser.parse(csv_header[2].split(';')[1].replace('"', ''), dayfirst=True).date()
             date_end = dateutil.parser.parse(csv_header[3].split(';')[1].replace('"', ''), dayfirst=True).date()
 
-            bal_val, bal_currency = csv_header[4].split(';')[1].replace('"', '').replace('.', '').replace(',', '.').split(' ')
+            bal_val, bal_currency = csv_header[4].strip().split(';')[1].replace('"', '').replace('.', '').replace(',', '.').split(' ')
             assert bal_currency == 'EUR', f"Balance currency should be in EUR, got {bal_currency}"
 
             balance_amount = Amount(D(bal_val), 'EUR')
@@ -72,9 +72,9 @@ class Importer(importer.ImporterProtocol):
 
                 trans_meta = data.new_metadata(f.name, index)
                 if sepa_creditor_id != '':
-                    trans_meta['SEPA_CREATOR_ID'] = sepa_creditor_id
+                    trans_meta['sepa_creator_id'] = sepa_creditor_id
                 if sepa_mandate_ref != '':
-                    trans_meta['SEPA_MANDATE_REFERENCE'] = sepa_mandate_ref
+                    trans_meta['sepa_mandate_reference'] = sepa_mandate_ref
 
                 txn = data.Transaction(
                     meta=trans_meta,
