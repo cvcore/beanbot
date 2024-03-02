@@ -3,6 +3,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import date
+import logging
 import numpy as np
 from beancount.core import interpolate
 from beancount.core.data import Transaction, Directive, Entries, Balance
@@ -108,7 +109,10 @@ class _TransactionAccountExtractor(_TransactionRegExpExtractor):
     def posting_filter_keep_one(self, postings: Postings) -> str:
         valid_accounts = [p.account for p in postings if self.match(p.account)]
 
-        if len(valid_accounts) > 0:
+        if len(valid_accounts) > 1:
+            logging.warning(f"Multiple valid accounts found: {valid_accounts}")
+            return valid_accounts[0]
+        elif len(valid_accounts) == 1:
             return valid_accounts[0]
         return ''
 
