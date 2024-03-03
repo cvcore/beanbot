@@ -9,7 +9,7 @@ from beanbot.classifier.meta_transaction_classifier import MetaTransactionClassi
 from beancount.core.data import Transaction
 from beancount.core import data
 from beanbot.ops.filter import PredictedTransactionFilter, TransactionFilter
-from beanbot.ops.file_saver import EntryFileSaver
+from beanbot.file.saver import EntryFileSaver
 from beanbot.ops.dedup import InternalTransferDeduplicator
 from beanbot.common.configs import BeanbotConfig
 from beancount.ingest.similar import find_similar_entries

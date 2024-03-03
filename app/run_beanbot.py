@@ -13,6 +13,7 @@ from beanbot.data.adapter import ColumnConfig
 
 from beanbot.ops import extractor
 from beanbot.ops.conditions import is_predicted
+from beanbot.file.saver import EntryFileSaver
 from beanbot.ops.filter import PredictedTransactionFilter
 from beanbot.ui.factory import BeanbotDataEditorFactory, _setter_fn_new_prediction, _setter_fn_pred_account
 import logging
@@ -25,7 +26,7 @@ TEST_FILE = "/Users/core/Development/Finance/beanbot/tests/data/main.bean"
 # TEST_FILE = "/Users/core/Library/Mobile Documents/com~apple~CloudDocs/Beancount/main.bean"
 
 @st.cache_resource
-def get_entries(file: str) -> MutableEntriesView:
+def get_entries_view(file: str) -> MutableEntriesView:
     print(f"Loading entries from {file}")
     global_config = BeanbotConfig.get_global()
     global_config.parse_file(file)
@@ -85,9 +86,9 @@ st.set_page_config(layout="wide")
 st.header("🫘 Beanbot Data Editor")
 st.text("The following data are imported from the transaction file, please check their correctness and make changes if necessary.")
 
-entries = get_entries(TEST_FILE)
+entries_view = get_entries_view(TEST_FILE)
 # entries = entries_orig.filter(is_new_prediction)
-adapter = get_adapter(entries)
+adapter = get_adapter(entries_view)
 dataframe = get_dataframe(adapter)
 
 # Show the table editor
@@ -98,3 +99,9 @@ if st.button("Confim Changes"):
     adapter.commit_changes()
     # st.session_state[adapter._editor_key] = {}
     # print(st.session_state)
+
+
+if st.button("Save To File"):
+    file_saver = EntryFileSaver(BeanbotConfig.get_global()['fallback-transaction-file'])
+    file_saver.learn_filename(entries_view.get_entries())
+    file_saver.save(entries_view.get_immutable_entries())

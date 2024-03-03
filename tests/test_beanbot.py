@@ -16,7 +16,7 @@ from beanbot.classifier.meta_transaction_classifier import \
 from beanbot.common.configs import BeanbotConfig
 from beanbot.common.types import Transactions
 from beanbot.ops.extractor import TransactionDescriptionExtractor
-from beanbot.ops.file_saver import EntryFileSaver
+from beanbot.file.saver import EntryFileSaver
 from beanbot.tests.dataloader import DataLoader
 from beanbot.tests.metrics import PrecisionScore
 from beanbot.vectorizer.bag_of_words_vectorizer import BagOfWordVectorizer
