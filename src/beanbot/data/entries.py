@@ -77,6 +77,9 @@ class MutableEntriesView:
     def get_entries(self) -> MutableEntries:
         return self._entries
 
+    def get_immutable_entries(self) -> Entries:
+        return [entry.to_immutable() for entry in self._entries]
+
     def get_unique_values_for_key(self, key: str, entry_type: Optional[type] = None) -> Set:
         return set(self.as_dataframe(entry_type, [key]).unique())
 
