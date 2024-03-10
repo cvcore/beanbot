@@ -7,10 +7,6 @@ import tempfile
 
 class TextEditorTestCase(unittest.TestCase):
 
-    def setUp(self):
-        self.test_input_path = "/Users/core/Development/Finance/beanbot/tests/data/file_editor/test_insert.txt"
-        self.expected_file_path = "/Users/core/Development/Finance/beanbot/tests/data/file_editor/test_insert_expect.txt"
-
     def tearDown(self):
         self.text_editor = None
 
