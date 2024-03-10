@@ -54,6 +54,18 @@ class TextEditorTestCase(unittest.TestCase):
 
         self.run_test_case(input_file, expect_file, changes)
 
+    def test_rel_deletion(self):
+        # Define the changes to be made
+
+        input_file = "tests/data/file_editor/test_file.txt"
+        expect_file = "tests/data/file_editor/test_rel_delete_expect.txt"
+
+        changes = [
+            ChangeSet(ChangeType.DELETE, position=(-2, -1)),
+        ]
+
+        self.run_test_case(input_file, expect_file, changes)
+
     def test_replace(self):
         # Define the changes to be made
 
