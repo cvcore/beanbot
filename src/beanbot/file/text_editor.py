@@ -56,11 +56,29 @@ class ChangeSet:
 class TextEditor:
 
     def __init__(self, file_path: str) -> None:
+        """
+        Initialize a TextEditor with given file path.
+
+        Args:
+            file_path (str): The path to the file.
+
+        Raises:
+            AssertionError: If the file does not exist.
+        """
         self._file_path = Path(file_path)
         assert self._file_path.exists(), f"File {file_path} does not exist."
         self._changes = []
 
     def edit(self, changes: List[ChangeSet] | ChangeSet) -> None:
+        """
+        Applies the given changes to the text editor.
+
+        Args:
+            changes (List[ChangeSet] | ChangeSet): The changes to be applied. It can be a single ChangeSet or a list of ChangeSet objects.
+
+        Returns:
+            None
+        """
         if isinstance(changes, ChangeSet):
             changes = [changes]
         self._changes.extend(changes)
@@ -73,7 +91,7 @@ class TextEditor:
         else:
             return (inf, inf)
 
-    def _sort_changes(self):
+    def _sort_changes_by_position(self):
         self._changes.sort(key=self._get_position_tuple)
 
     def _check_changes_non_overlapping(self):
@@ -86,19 +104,29 @@ class TextEditor:
                 assert not next_begin == next_end == edit_begin, f"Double insertion at position {edit_begin} detected."
 
 
-    def _check_changes_validity(self, line_count: int):
+    def _check_range_validity(self, line_count: int):
         for change in self._changes:
             position = self._get_position_tuple(change)
             assert position == (inf, inf) or \
                 (0 <= position[0] <= position[1] < line_count), f"Change {change} is invalid."
 
     def save_changes(self, to_path: Optional[str] = None):
-        with open(self._file_path, 'r') as file:
+        """
+        Saves the changes made to the file.
+
+        Args:
+            to_path (Optional[str]): The path to save the file. If not provided, the changes will be saved to the original file path.
+
+        Returns:
+            None
+        """
+
+        with open(self._file_path, 'r', encoding='utf-8') as file:
             lines = file.readlines()
 
-        self._sort_changes()
+        self._sort_changes_by_position()
         self._check_changes_non_overlapping()
-        self._check_changes_validity(len(lines))
+        self._check_range_validity(len(lines))
 
         edited_lines = []
 
@@ -147,5 +175,5 @@ class TextEditor:
                 assert False, f"Unexpected change type {self._changes[change_idx].type}"
 
         save_path = to_path if to_path is not None else self._file_path
-        with open(save_path, 'w') as file:
+        with open(save_path, 'w', encoding='utf-8') as file:
             file.writelines(edited_lines)
