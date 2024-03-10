@@ -66,6 +66,8 @@ class TextEditor:
             AssertionError: If the file does not exist.
         """
         self._file_path = Path(file_path)
+        with open(file_path, 'r', encoding='utf-8') as file:
+            self._file_n_lines = sum(1 for _ in file)
         assert self._file_path.exists(), f"File {file_path} does not exist."
         self._changes = []
 
@@ -84,12 +86,20 @@ class TextEditor:
         self._changes.extend(changes)
 
     def _get_position_tuple(self, change: ChangeSet) -> Tuple[int, int]:
+        # convert relative positions to their absolute values
         if change.type == ChangeType.INSERT:
-            return (change.position, change.position)
+            pos_tuple = (change.position, change.position)
         elif change.type == ChangeType.DELETE or change.type == ChangeType.REPLACE:
-            return change.position
+            pos_tuple = change.position
         else:
-            return (inf, inf)
+            pos_tuple = (inf, inf)
+
+        if pos_tuple[0] < 0:
+            pos_tuple = (self._file_n_lines + pos_tuple[0], pos_tuple[1])
+        if pos_tuple[1] < 0:
+            pos_tuple = (pos_tuple[0], self._file_n_lines + pos_tuple[1])
+
+        return pos_tuple
 
     def _sort_changes_by_position(self):
         self._changes.sort(key=self._get_position_tuple)
