@@ -7,7 +7,7 @@ import pandas as pd
 
 from beanbot.data import directive
 from beanbot.data.adapter import OpenedAccount, StreamlitDataEditorAdapter
-from beanbot.data.entries import MutableEntriesView
+from beanbot.data.entries import MutableEntriesContainer
 import streamlit as st
 from beanbot.data.adapter import ColumnConfig
 
@@ -26,23 +26,23 @@ TEST_FILE = "/Users/core/Development/Finance/beanbot/tests/data/main.bean"
 # TEST_FILE = "/Users/core/Library/Mobile Documents/com~apple~CloudDocs/Beancount/main.bean"
 
 @st.cache_resource
-def get_entries_view(file: str) -> MutableEntriesView:
+def get_entries_container(file: str) -> MutableEntriesContainer:
     print(f"Loading entries from {file}")
     global_config = BeanbotConfig.get_global()
     global_config.parse_file(file)
-    entries = MutableEntriesView.load_from_file(file)
-    return entries
+    entries_container = MutableEntriesContainer.load_from_file(file)
+    return entries_container
+
+
+# @st.cache_resource
+# def get_editor_args(_entries) -> Tuple:
+#     print(f"Creating editor from entries")
+#     editor = BeanbotDataEditorFactory(_entries)
+#     return editor._adapter.get_dataframe(), editor._adapter.get_data_editor_kwargs()
 
 
 @st.cache_resource
-def get_editor_args(_entries) -> Tuple:
-    print(f"Creating editor from entries")
-    editor = BeanbotDataEditorFactory(_entries)
-    return editor._adapter.get_dataframe(), editor._adapter.get_data_editor_kwargs()
-
-
-@st.cache_resource
-def get_adapter(_entries: MutableEntriesView) -> StreamlitDataEditorAdapter:
+def get_adapter(_entries: MutableEntriesContainer) -> StreamlitDataEditorAdapter:
     print("Creating adapter from entries")
 
     ext_new_predictions = extractor.DirectiveNewPredictionsExtractor()
@@ -86,9 +86,9 @@ st.set_page_config(layout="wide")
 st.header("🫘 Beanbot Data Editor")
 st.text("The following data are imported from the transaction file, please check their correctness and make changes if necessary.")
 
-entries_view = get_entries_view(TEST_FILE)
+entries_container = get_entries_container(TEST_FILE)
 # entries = entries_orig.filter(is_new_prediction)
-adapter = get_adapter(entries_view)
+adapter = get_adapter(entries_container)
 dataframe = get_dataframe(adapter)
 
 # Show the table editor
@@ -96,12 +96,13 @@ st.data_editor(dataframe, **adapter.get_data_editor_kwargs())
 
 # Button for confirming the changes
 if st.button("Confim Changes"):
-    adapter.commit_changes()
+    adapter.update_entries()
     # st.session_state[adapter._editor_key] = {}
     # print(st.session_state)
 
 
 if st.button("Save To File"):
-    file_saver = EntryFileSaver(BeanbotConfig.get_global()['fallback-transaction-file'])
-    file_saver.learn_filename(entries_view.get_entries())
-    file_saver.save(entries_view.get_immutable_entries())
+    # file_saver = EntryFileSaver(BeanbotConfig.get_global()['fallback-transaction-file'])
+    # file_saver.learn_filename(entries_container.get_entries())
+    # file_saver.save(entries_container.get_immutable_entries())
+    entries_container.save()

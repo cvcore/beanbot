@@ -7,7 +7,7 @@ from numpy import column_stack
 from pandas import DataFrame
 from pydantic import BaseModel
 from beanbot.data.directive import MutableTransaction
-from beanbot.data.entries import MutableEntriesView
+from beanbot.data.entries import MutableEntriesContainer
 import streamlit as st
 
 from beanbot.ops.extractor import BaseExtractor
@@ -56,7 +56,7 @@ class ColumnConfig():
 class StreamlitDataEditorAdapter:
     """Adapter class to support editing BeanBotEntries by handling necessary conversions between the dataframes and the entries."""
 
-    def __init__(self, bb_entries: MutableEntriesView, column_configs: List[ColumnConfig], editor_config: Optional[Dict] = None) -> None:
+    def __init__(self, bb_entries: MutableEntriesContainer, column_configs: List[ColumnConfig], editor_config: Optional[Dict] = None) -> None:
         """Initialize the adapter with given entries.
 
         Args:
@@ -70,6 +70,7 @@ class StreamlitDataEditorAdapter:
         self._editor_config = editor_config if editor_config is not None else self._get_default_editor_config()
         self._editor_key = str(uuid4())[-8:]
         self._editor_state = {}
+        self._editor_row_to_id = {}
         self._refresh_needed = False
 
     def is_refresh_needed(self) -> bool:
@@ -90,10 +91,11 @@ class StreamlitDataEditorAdapter:
 
     def get_dataframe(self) -> DataFrame:
         bb_entries_df = self._bb_entries.as_dataframe(
-            # entry_type=MutableTransaction,
-            # selected_columns=self.get_visible_columns() + ["entry_id"],  # add id field for easier queries
+            selected_entry_type=MutableTransaction,
+            selected_columns=self.get_visible_columns() + ["entry_id"],  # add id field for easier queries
         )
         bb_entries_df.insert(0, "Select", False, allow_duplicates=False)
+        self._editor_row_to_id = {idx: row.entry_id for idx, row in bb_entries_df.iterrows()}
 
         return bb_entries_df
 
@@ -103,7 +105,7 @@ class StreamlitDataEditorAdapter:
     def _get_st_column_configs(self) -> Dict:
         """Return a dictionary of column configuraions as required by streamlit"""
         config_dict = dict(
-            entry_id=None,  # hide the id column by default, unless explicitly specified
+            # entry_id=None,  # hide the id column by default, unless explicitly specified
         )
 
         for config in self._column_configs.values():
@@ -161,10 +163,12 @@ class StreamlitDataEditorAdapter:
             height=600,
         )
 
-    def commit_changes(self):
+    def update_entries(self):
+        """Update the mutable entries' fields based on the editor state."""
         edited_rows = self._editor_state.get("edited_rows", {})
 
         for row, row_changes in edited_rows.items():
+            entry_id = self._editor_row_to_id[row]
             for col, col_change in row_changes.items():
                 if self._column_configs[col].linked_entry_field is not None:
                     col_config = self._column_configs[col]
@@ -172,18 +176,17 @@ class StreamlitDataEditorAdapter:
 
                     if col_config.entry_setter_fn is not None:
                         orig_value = getattr(
-                            # self._bb_entries.get_entry_by_id(entry_id),
-                            self._bb_entries.get_entry_by_idx(row),
+                            self._bb_entries.get_entry_by_id(entry_id),
                             col_config.linked_entry_field
                         )
                         upd_value = col_config.entry_setter_fn(orig_value, col_change)
                     else:
                         upd_value = col_change
 
-                    self._bb_entries.edit_entry_by_idx(
-                        row,
-                        [col_config.linked_entry_field],
-                        [upd_value],
+                    self._bb_entries.edit_entry_by_id(
+                        entry_id,
+                        keys=[col_config.linked_entry_field],
+                        values=[upd_value],
                     )
 
         self._refresh_needed = True
