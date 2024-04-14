@@ -23,11 +23,17 @@ class ChangeSet:
 
     Attributes:
         type (ChangeType): The type of change.
+
         position (int | Tuple[int, int] | NoneType): The position of the change.
             For INSERT type, it should be an integer representing the position to insert the content.
             For DELETE and REPLACE types, it should be a tuple of two integers representing the range to delete or replace.
             For APPEND type, it should be None, as appending is only supported at the end of the file.
-            When the specified position is negative, it is interpreted as a relative position from the end of the file (-1 for the last line, etc.).
+
+            The line numbers are 0-indexed. When the specified position is negative,
+            it is interpreted as a relative position from the end of the file:
+            e.g. (pos, -1) means every line from pos to the end of the file, inclusive;
+            (pos, -2) means every line from pos to the second last line, etc.
+
         content (Optional[List[str]]): The content to be inserted, replaced, or appended.
             This attribute is required for INSERT, REPLACE, and APPEND types.
     """
@@ -50,13 +56,15 @@ class ChangeSet:
         if self.type in {ChangeType.APPEND}:
             assert self.position is None, f"position must be None for {self.type}, as we only support appending to the end of the file."
 
+        assert isinstance(self.content, list | NoneType), f"content must be a list of strings for {self.type}"
+
     def __repr__(self) -> str:
         return f"ChangeSet(\ntype={self.type},\nposition={self.position},\ncontent={self.content})"
 
 
 class TextEditor:
 
-    def __init__(self, file_path: str) -> None:
+    def __init__(self, file_path: str, encoding: str = 'utf-8') -> None:
         """
         Initialize a TextEditor with given file path.
 
@@ -67,10 +75,17 @@ class TextEditor:
             AssertionError: If the file does not exist.
         """
         self._file_path = Path(file_path)
-        with open(file_path, 'r', encoding='utf-8') as file:
-            self._file_n_lines = sum(1 for _ in file)
+        self._lines = self._read_file(file_path)
+        self._file_n_lines = len(self._lines)
+        self._encoding = encoding
         assert self._file_path.exists(), f"File {file_path} does not exist."
         self._changes = []
+
+    def _read_file(self, file_path: str) -> List[str]:
+        with open(file_path, 'r', encoding=self._encoding) as file:
+            lines = file.readlines()
+        lines.append('')  # note: we add this empty line to be able to address the position after the last line with -1
+        return lines
 
     def edit(self, changes: List[ChangeSet] | ChangeSet) -> None:
         """
@@ -132,8 +147,7 @@ class TextEditor:
             None
         """
 
-        with open(self._file_path, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
+        lines = self._lines
 
         self._sort_changes_by_position()
         self._check_changes_non_overlapping()
@@ -143,7 +157,7 @@ class TextEditor:
 
         change_idx = 0
         line_idx = 0
-        while line_idx < len(lines):
+        while line_idx < len(lines) - 1:  # ignore the last empty line added when reading
 
             # No more changes to apply
             if change_idx >= len(self._changes):
@@ -186,5 +200,5 @@ class TextEditor:
                 assert False, f"Unexpected change type {self._changes[change_idx].type}"
 
         save_path = to_path if to_path is not None else self._file_path
-        with open(save_path, 'w', encoding='utf-8') as file:
+        with open(save_path, 'w', encoding=self._encoding) as file:
             file.writelines(edited_lines)
