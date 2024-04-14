@@ -81,18 +81,21 @@ class MutableEntriesContainer:
             editor.edit(changes)
             editor.save_changes()
 
-    def _get_changesets(self) -> Dict[str, List[ChangeSet]]:
+    def _get_changesets(self, add_newline: bool = True) -> Dict[str, List[ChangeSet]]:
         file_changesets = defaultdict(list)
         eprinter = EntryPrinter()
         for entry, metadata in zip(self._entries, self._metadata):
             if metadata[self._BEANBOT_EDITED_FLAG]:
                 filename = os.path.realpath(entry.meta['filename'])
                 lineno_range = metadata['lineno_range']
+                entry_string = eprinter(entry.to_immutable())
+                if add_newline:
+                    entry_string += '\n'
                 file_changesets[filename].append(
                     ChangeSet(
                         type=ChangeType.REPLACE,
                         position=lineno_range,
-                        content=eprinter(entry.to_immutable()),
+                        content=[entry_string],
                     )
                 )
         return file_changesets
@@ -120,7 +123,8 @@ class MutableEntriesContainer:
         for idx, entry in enumerate(entries):
             filename = os.path.realpath(entry.meta['filename'])
             lineno = entry.meta['lineno']
-            self._metadata[idx]['lineno_range'] = (lineno, next_linenos[filename][lineno] - 1)
+            # the linenos from beancount entries are 1-indexed
+            self._metadata[idx]['lineno_range'] = (lineno - 1, next_linenos[filename][lineno] - 1)
 
     # Getter methods
 
