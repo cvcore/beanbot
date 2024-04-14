@@ -3,14 +3,13 @@
 """This module implements the Filer class which is responsible for saving / appending each new transactions into the corresponding files."""
 
 import sys
-from email.policy import default
-from typing import Dict, List
+from typing import Dict
 from collections import defaultdict
 from beancount.core import data
 from beancount.parser import printer
 
 from beanbot.ops.extractor import DirectiveRecordSourceAccountExtractor, DirectiveSourceFilenameExtractor
-from beanbot.ops.filter import PredictedTransactionFilter, BalancedTransactionFilter
+from beanbot.ops.filter import PredictedTransactionFilter
 from beanbot.common.collections import defaultdictstateless
 
 
@@ -34,7 +33,7 @@ class EntryFileSaver():
                 continue
 
             if account in self._account_to_filename:
-                assert filename == self._account_to_filename[account], f"Detected conflicts in storage location for account: {account}.\nExpected: {self._account_to_filename[account]}\nReal:{filename}"
+                assert filename == self._account_to_filename[account], f"Detected conflicts in storage location for account: {account}.\nExpected: {self._account_to_filename[account]}\Got:{filename}"
             else:
                 self._account_to_filename[account] = filename
 

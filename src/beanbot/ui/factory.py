@@ -8,7 +8,7 @@ import re
 
 from beanbot.data.adapter import StreamlitDataEditorAdapter, ColumnConfig, OpenedAccount
 from beanbot.data.directive import MutablePosting
-from beanbot.data.entries import MutableEntriesView
+from beanbot.data.entries import MutableEntriesContainer
 from beanbot.ops import extractor
 
 
@@ -48,7 +48,7 @@ def _setter_fn_pred_account(old_postings: List[MutablePosting], col_change: str)
 
 
 class BeanbotDataEditorFactory:
-    def __init__(self, entries: MutableEntriesView) -> None:
+    def __init__(self, entries: MutableEntriesContainer) -> None:
         self._bb_entries = entries
 
         ext_new_predictions = extractor.DirectiveNewPredictionsExtractor()
@@ -75,5 +75,6 @@ class BeanbotDataEditorFactory:
                 ColumnConfig("narration", "Narration", str, "The transaction narration."),
                 ColumnConfig("new_predictions", "New Prediction", bool, "Is the transaction category newly predicted?", linked_entry_field="tags", editable=True, entry_setter_fn=_setter_fn_new_prediction),
                 ColumnConfig("source_account", "Booked On", str, "Which account is the tranaction booked on?"),
+                ColumnConfig("entry_id", "Entry ID", str, "The unique identifier of the transaction used for editing."),
             ]
         )

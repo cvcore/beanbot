@@ -27,6 +27,7 @@ class ChangeSet:
             For INSERT type, it should be an integer representing the position to insert the content.
             For DELETE and REPLACE types, it should be a tuple of two integers representing the range to delete or replace.
             For APPEND type, it should be None, as appending is only supported at the end of the file.
+            When the specified position is negative, it is interpreted as a relative position from the end of the file (-1 for the last line, etc.).
         content (Optional[List[str]]): The content to be inserted, replaced, or appended.
             This attribute is required for INSERT, REPLACE, and APPEND types.
     """
@@ -50,7 +51,7 @@ class ChangeSet:
             assert self.position is None, f"position must be None for {self.type}, as we only support appending to the end of the file."
 
     def __repr__(self) -> str:
-        return f"ChangeSet(type={self.type}, position={self.position}, content={self.content})"
+        return f"ChangeSet(\ntype={self.type},\nposition={self.position},\ncontent={self.content})"
 
 
 class TextEditor:
