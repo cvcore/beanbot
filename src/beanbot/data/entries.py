@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional, Set
+from collections import defaultdict
+import os
+from typing import Callable, Dict, List, Optional, Set, Tuple
 import uuid
 from beancount.core.data import Entries
 from beancount.loader import load_file
@@ -9,6 +11,7 @@ from pandas import DataFrame
 from beanbot.data.directive import MutableDirective, MutableEntries, MutableOpen, make_mutable
 from beancount.core.data import Directive
 
+from beanbot.file.text_editor import ChangeSet
 from beanbot.ops.extractor import BaseExtractor
 
 
@@ -45,11 +48,13 @@ class MutableEntriesView:
             self._metadata = metadata
         else:  # create new metadata with entry ids
             self._metadata = [{'entry_id': uuid.uuid4()} for _ in range(len(entries))]
+            self._extract_entry_lineno_range()
         self._id_to_idx = {self._metadata[idx]['entry_id']: idx for idx in range(len(entries))}
 
         self._attached_extractors = {} if extra_extractors is None else extra_extractors
         self._extract_metadata()
 
+    # File I/O
 
     @classmethod
     def load_from_file(cls, path: str) -> MutableEntriesView:
@@ -57,6 +62,38 @@ class MutableEntriesView:
         entries, errors, options_map = load_file(path)
         entries = [make_mutable(entry) for entry in entries]
         return MutableEntriesView(entries, errors, options_map)
+
+    def save(self) -> None:
+        pass
+
+    def _get_changesets(self) -> Dict[str, List[ChangeSet]]:
+        for entry in self._entries:
+            if 
+
+    def _extract_entry_lineno_range(self) -> None:
+        """Extract the entries' line number ranges."""
+
+        file_linenos = defaultdict(list)
+        entries = self._entries
+
+        for entry in entries:
+            filename = os.path.realpath(entry.meta['filename'])
+            lineno = entry.meta['lineno']
+            file_linenos[filename].append(lineno)
+
+        for filename in file_linenos:
+            file_linenos[filename].sort()
+
+        next_linenos = defaultdict(dict)
+        for filename, linenos in file_linenos.items():
+            for idx in range(len(linenos) - 1):
+                next_linenos[filename][linenos[idx]] = linenos[idx + 1]
+            next_linenos[filename][linenos[-1]] = 0
+
+        for idx, entry in enumerate(entries):
+            filename = os.path.realpath(entry.meta['filename'])
+            lineno = entry.meta['lineno']
+            self._metadata[idx]['lineno_range'] = (lineno, next_linenos[filename][lineno] - 1)
 
     # Getter methods
 
