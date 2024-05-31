@@ -19,7 +19,7 @@ from beanbot.ops import filter
 
 class DataLoader():
 
-    def __init__(self, filename, ratio_removal: float=6, remove_from_tail=True, init_rand_seed: Optional[int]=None) -> None:
+    def __init__(self, filename, ratio_removal: float=0.6, remove_from_tail=True, init_rand_seed: Optional[int]=None) -> None:
         """Build a DataLoader object. This object can be used to load test cases for the classifier.
 
         Arguments:
@@ -32,7 +32,7 @@ class DataLoader():
         super().__init__()
 
         self._filename = filename
-        assert ratio_removal > 0 and ratio_removal < 1, "Ratio removal must be between 0 and 1"
+        assert 0 <= ratio_removal <= 1, "Ratio removal must be between 0 - 1 (inclusive)"
         self._ratio_removal = ratio_removal
         self._init_rand_seed = init_rand_seed
         self._remove_from_tail = remove_from_tail
@@ -44,12 +44,6 @@ class DataLoader():
         self._safeguard_date_ascending(entries) # Some functionalities rely on the date being ascending. Make sure it is.
 
         return (entries, errors, options_map)
-
-    def _load_transactions(self) -> Transactions:
-        entries, errors, options_map = self._load_test_file()
-        transactions = filter.TransactionFilter().filter(entries)
-
-        return transactions, errors, options_map
 
     def _remove_entries_tail(self, transactions: Transactions) -> Tuple[Transactions, List[int]]:
         """Remove the ground truth label from the `n_removal` last entries """
@@ -101,7 +95,9 @@ class DataLoader():
     def load(self) -> Iterable[Dataset]:
         """Get test case. Format: Ground truth transactions, Test input, Indices with label removed"""
 
-        transactions_gt, _, options_map = self._load_transactions()
+        all_entries, _, options_map = self._load_test_file()
+        transactions_gt = filter.TransactionFilter().filter(all_entries)
+
         if self._remove_from_tail:
             transactions_input, removed_indices = self._remove_entries_tail(transactions_gt)
         else:
@@ -109,7 +105,11 @@ class DataLoader():
             transactions_input, removed_indices = self._remove_entries_rand(transactions_gt, self._init_rand_seed)
 
         yield Dataset(
-            transactions_gt, options_map, transactions_input, None, removed_indices
+            gt_transactions=transactions_gt,
+            options_map=options_map,
+            input_transactions=transactions_input,
+            removed_indices=removed_indices,
+            all_entries=all_entries,
         )
 
     def _safeguard_date_ascending(self, entries):

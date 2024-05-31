@@ -6,7 +6,7 @@ from typing import Callable, Iterable
 import numpy as np
 from beancount.core.data import Transaction, Account
 from beanbot.vectorizer.abstract_vectorizer import AbstractVectorizer, VectorizedTransactions
-from beanbot.ops.extractor import TransactionCategoryAccountExtractor, TransactionDescriptionExtractor, TransactionDateExtractor, TransactionRecordSourceAmountExtractor
+from beanbot.ops.extractor import TransactionCategoryAccountExtractor, TransactionDescriptionExtractor, TransactionDateExtractor, TransactionRecordSourceAmountSignExtractor
 from beanbot.ops.hashing import BiDirectionalHash
 from beanbot.common.types import Postings, Transactions
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
@@ -23,7 +23,7 @@ class BagOfWordVectorizer(AbstractVectorizer):
 
         self._cat_account_extractor = TransactionCategoryAccountExtractor()
         self._date_extractor = TransactionDateExtractor() if extract_date else None
-        self._amount_extractor = TransactionRecordSourceAmountExtractor() if extract_amount else None
+        self._amount_extractor = TransactionRecordSourceAmountSignExtractor() if extract_amount else None
         self._trans_desc_extractor = TransactionDescriptionExtractor()
 
         # self._vectorizer = CountVectorizer(ngram_range=(3, 3), analyzer='char')
