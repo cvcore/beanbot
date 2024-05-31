@@ -94,7 +94,7 @@ class StreamlitDataEditorAdapter:
             selected_entry_type=MutableTransaction,
             selected_columns=self.get_visible_columns() + ["entry_id"],  # add id field for easier queries
         )
-        bb_entries_df.insert(0, "Select", False, allow_duplicates=False)
+        # bb_entries_df.insert(0, "Select", False, allow_duplicates=False)
         self._editor_row_to_id = {idx: row.entry_id for idx, row in bb_entries_df.iterrows()}
 
         return bb_entries_df

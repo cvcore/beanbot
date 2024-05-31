@@ -64,7 +64,7 @@ class ChangeSet:
 
 class TextEditor:
 
-    def __init__(self, file_path: str, encoding: str = 'utf-8') -> None:
+    def __init__(self, file_path: str, encoding: str = "utf-8") -> None:
         """
         Initialize a TextEditor with given file path.
 
@@ -75,9 +75,9 @@ class TextEditor:
             AssertionError: If the file does not exist.
         """
         self._file_path = Path(file_path)
+        self._encoding = encoding
         self._lines = self._read_file(file_path)
         self._file_n_lines = len(self._lines)
-        self._encoding = encoding
         assert self._file_path.exists(), f"File {file_path} does not exist."
         self._changes = []
 
