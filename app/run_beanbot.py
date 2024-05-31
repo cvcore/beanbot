@@ -1,6 +1,8 @@
 from datetime import date
+import os
 from sqlite3 import adapt
-from typing import Tuple
+from typing import Dict, List, Optional, Tuple
+from uuid import UUID
 import pytest
 from beanbot.common.configs import BeanbotConfig
 import pandas as pd
@@ -21,9 +23,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# TODO: put this to argument
-TEST_FILE = "/Users/core/Development/Finance/beanbot/tests/data/main.bean"
-# TEST_FILE = "/Users/core/Library/Mobile Documents/com~apple~CloudDocs/Beancount/main.bean"
+TEST_FILE = os.environ.get("BEANBOT_FILE", None)
+assert TEST_FILE is not None, "BEANBOT_FILE environment variable must be set!"
 
 @st.cache_resource
 def get_entries_container(file: str) -> MutableEntriesContainer:
@@ -42,7 +43,7 @@ def get_entries_container(file: str) -> MutableEntriesContainer:
 
 
 @st.cache_resource
-def get_adapter(_entries: MutableEntriesContainer) -> StreamlitDataEditorAdapter:
+def get_adapter(_entries: MutableEntriesContainer, filters: Optional[Dict] = None) -> StreamlitDataEditorAdapter:
     print("Creating adapter from entries")
 
     ext_new_predictions = extractor.DirectiveNewPredictionsExtractor()
@@ -61,16 +62,17 @@ def get_adapter(_entries: MutableEntriesContainer) -> StreamlitDataEditorAdapter
 
     return StreamlitDataEditorAdapter(_entries, [
         ColumnConfig("date", "Date", date, "The date of the transaction."),
+        ColumnConfig("new_predictions", "New Prediction", bool, "Is the transaction category newly predicted?", linked_entry_field="tags", editable=True, entry_setter_fn=_setter_fn_new_prediction),
         ColumnConfig("category_account", "Category", OpenedAccount, "The transaction category.", linked_entry_field="postings", editable=True, entry_setter_fn=_setter_fn_pred_account),
         ColumnConfig("category_amount", "Amount", float, "The transaction amount."),
         ColumnConfig("payee", "Payee", str, "The transaction payee"),
         ColumnConfig("narration", "Narration", str, "The transaction narration."),
-        ColumnConfig("new_predictions", "New Prediction", bool, "Is the transaction category newly predicted?", linked_entry_field="tags", editable=True, entry_setter_fn=_setter_fn_new_prediction),
         ColumnConfig("source_account", "Booked On", str, "Which account is the tranaction booked on?"),
     ])
 
 
-def get_dataframe(_adapter) -> pd.DataFrame:
+@st.cache_resource
+def get_dataframe(_adapter, filters: Optional[Dict] = None) -> pd.DataFrame:
     print("Getting dataframe from adapter")
     return _adapter.get_dataframe()
 
@@ -91,12 +93,57 @@ entries_container = get_entries_container(TEST_FILE)
 adapter = get_adapter(entries_container)
 dataframe = get_dataframe(adapter)
 
+
+filters = {}
+with st.expander("Filters"):
+    filter = st.text_input("Date")
+    if filter:
+        filters["date"] = filter
+    filter = st.text_input("Category")
+    if filter:
+        filters["category_account"] = filter
+    filter = st.text_input("Payee")
+    if filter:
+        filters["payee"] = filter
+    filter = st.text_input("Narration")
+    if filter:
+        filters["narration"] = filter
+    filter = st.text_input("Booked On")
+    if filter:
+        filters["source_account"] = filter
+    filter = st.selectbox("New Prediction", ["True", "False", ""])
+    if filter:
+        filters["new_predictions"] = filter
+    # filter_new_pred = st.selectbox("New Prediction", ["All", "Yes", "No"])
+
+
+def filter_dataframe(dataframe: pd.DataFrame, filters: Dict[str, str]) -> List[UUID]:
+    df_temp = dataframe.copy()
+    for column, filter in filters.items():
+        f = lambda x: filter in str(x)
+        df_temp = df_temp[df_temp[column].apply(f)]
+        if len(df_temp) == 0:
+            return []
+    return df_temp["entry_id"].tolist()
+
+
+if len(filters) > 0:
+    filtered_rows = filter_dataframe(
+        dataframe,
+        filters,
+    )
+    filtered_entries = entries_container.filter_by_id(filtered_rows)
+    adapter = get_adapter(filtered_entries, filters)
+    dataframe = get_dataframe(adapter, filters)
+
 # Show the table editor
 st.data_editor(dataframe, **adapter.get_data_editor_kwargs())
 
 # Button for confirming the changes
 if st.button("Confim Changes"):
     adapter.update_entries()
+    get_adapter.clear()
+    get_dataframe.clear()
     # st.session_state[adapter._editor_key] = {}
     # print(st.session_state)
 
@@ -106,3 +153,4 @@ if st.button("Save To File"):
     # file_saver.learn_filename(entries_container.get_entries())
     # file_saver.save(entries_container.get_immutable_entries())
     entries_container.save()
+    st.cache_resource.clear()

@@ -28,6 +28,7 @@ class MutableEntriesContainer:
         options_map: Dict,
         extra_extractors: Dict[str, BaseExtractor] = None,
         metadata: Optional[List] = None,
+        opened_accounts: Optional[Set[str]] = None,
     ) -> None:
         """Create a collection of beancount entries.
 
@@ -57,8 +58,12 @@ class MutableEntriesContainer:
                 } for _ in range(len(entries))
             ]
             self._extract_entry_lineno_range()
-        self._id_to_idx = {self._metadata[idx]['entry_id']: idx for idx in range(len(entries))}
+        if opened_accounts is not None:
+            self._opened_accounts = opened_accounts
+        else:
+            self._opened_accounts = self._extract_opened_accounts()
 
+        self._id_to_idx = {self._metadata[idx]['entry_id']: idx for idx in range(len(entries))}
         self._attached_extractors = {} if extra_extractors is None else extra_extractors
         self._extract_metadata()
 
@@ -151,8 +156,11 @@ class MutableEntriesContainer:
     def get_unique_values_for_key(self, key: str, entry_type: Optional[type] = None) -> Set:
         return set(self.as_dataframe(entry_type, [key]).unique())
 
-    def get_opened_accounts(self) -> Set[str]:
+    def _extract_opened_accounts(self) -> Set[str]:
         return set([entry.account for entry in self._entries if isinstance(entry, MutableOpen)])
+
+    def get_opened_accounts(self) -> Set[str]:
+        return self._opened_accounts
 
     # Conversions
 
@@ -162,7 +170,7 @@ class MutableEntriesContainer:
             df = DataFrame([self.get_entry_as_dict(idx, selected_columns) for idx in range(len(self._entries))])
         else:
             df = DataFrame([self.get_entry_as_dict(idx, selected_columns) for idx in range(len(self._entries)) if isinstance(self._entries[idx], selected_entry_type)])
-        if selected_columns is not None:
+        if selected_columns is not None and len(df) > 0:
             df = df[selected_columns]  # keep the ordering of the columns
         return df
 
@@ -225,16 +233,25 @@ class MutableEntriesContainer:
 
     # TODO: add sorting, insert at index, etc.
 
-    # def create_view_from_indices(self, indices: List[int]) -> MutableEntriesContainer:
-    #     """Create a new view from a list of indices."""
+    def create_container_from_indices(self, indices: List[int]) -> MutableEntriesContainer:
+        """Create a new view from a list of indices."""
 
-    #     selected_entries = [self._entries[idx] for idx in indices]
-    #     selected_metadata = [self._metadata[idx] for idx in indices]
-    #     return MutableEntriesContainer(selected_entries, self._errors, self._options_map, self._attached_extractors, selected_metadata)
+        selected_entries = [self._entries[idx] for idx in indices]
+        selected_metadata = [self._metadata[idx] for idx in indices]
+        return MutableEntriesContainer(selected_entries, self._errors, self._options_map, self._attached_extractors, selected_metadata, self._opened_accounts)
 
     # Filtering rows
-    # def filter(self, criterion: Callable[[MutableDirective], bool]) -> MutableEntriesContainer:
-    #     """Filter the entries according to a criterion."""
+    def filter_by_criterion(self, criterion: Callable[[MutableDirective], bool]) -> MutableEntriesContainer:
+        """Filter the entries according to a criterion."""
 
-    #     filtered_indices = [idx for idx in range(len(self._entries)) if criterion(self._entries[idx])]
-    #     return self.create_view_from_indices(filtered_indices)
+        filtered_indices = [idx for idx in range(len(self._entries)) if criterion(self._entries[idx])]
+        return self.create_container_from_indices(filtered_indices)
+
+    def filter_by_index(self, indices: List[int]) -> MutableEntriesContainer:
+        """Filter the entries by a list of indices."""
+        return self.create_container_from_indices(indices)
+
+    def filter_by_id(self, entry_ids: List[uuid.UUID]) -> MutableEntriesContainer:
+        """Filter the entries by a list of entry ids."""
+        indices = [self._id_to_idx[entry_id] for entry_id in entry_ids]
+        return self.create_container_from_indices(indices)
