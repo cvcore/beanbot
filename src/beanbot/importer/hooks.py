@@ -7,8 +7,8 @@ from beancount.core.data import Entries
 from beancount.ingest.importer import ImporterProtocol
 from beanbot.classifier.meta_transaction_classifier import MetaTransactionClassifier
 from beancount.core import data
-from beanbot.ops.filter import NotTransactionFilter, TransactionFilter
-from beanbot.ops.file_saver import EntryFileSaver
+from beanbot.ops.filter import PredictedTransactionFilter, TransactionFilter
+from beanbot.file.saver import EntryFileSaver
 from beanbot.ops.dedup import Deduplicator
 from beanbot.common.configs import BeanbotConfig
 from beancount.parser import printer
@@ -104,6 +104,10 @@ class BeanBotPredictionHook(ImporterHook):
         print("Non-duplicated entries:")
         printer.print_entries(imported_entries)
         print('------------------------')
+
+        if len(imported_entries) == 0:
+            print('No new entries found.')
+            return []
 
         print('[DEBUG] Learning filename for existing entries...')
         saver = EntryFileSaver(global_config['fallback-transaction-file'])

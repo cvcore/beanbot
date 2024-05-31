@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
-from typing import Any, Tuple, List
+from copy import deepcopy
+from typing import Any, Optional, Tuple, List
 from beancount.core.data import Transaction, iter_entry_dates, filter_txns, Directive, Entries, Open, Close, Commodity, Pad, Balance, Transaction, Note, Event, Query, Custom, Document, Posting, Price
 from beancount.parser import printer
 from pprint import pprint
@@ -27,6 +28,9 @@ class BaseDeduplicator(object):
 
         window_head = datetime.timedelta(days=window_days_head)
         window_tail = datetime.timedelta(days=window_days_tail + 1)
+
+        entries = deepcopy(entries)
+        entries = sorted(entries, key=lambda x: x.date)
 
         # For each of the new entries, look at existing entries at a nearby date.
         duplicates = []
@@ -140,32 +144,65 @@ def _comparator(field_value_0: Any, field_value_1: Any, field_key: str) -> bool:
 
 class SimilarEntryDeduplicator(BaseDeduplicator):
 
+    def _compare_postings(self, postings: Postings, imported_postings: Postings) -> bool:
+
+        postings = sorted(postings.copy(), key=lambda x: x.account)
+        imported_postings = sorted(imported_postings.copy(), key=lambda x: x.account)
+
+        accounts = [posting.account for posting in postings]
+        accounts_imported = [posting.account for posting in imported_postings]
+        if len(accounts_imported) == 1 and accounts_imported[0] not in accounts:
+            return False
+        elif len(accounts_imported) > 1 and accounts_imported != accounts:
+            return False
+
+        amounts = [p.units for p in postings]
+        amounts_imported = [p.units for p in imported_postings]
+        if len(amounts_imported) == 1 and amounts[accounts.index(accounts_imported[0])] != amounts_imported[0]:
+            return False
+        elif len(amounts_imported) > 1 and amounts != amounts_imported:
+            return False
+
+        return True
+
+    def _compare_optional_strings(self, str_value: Optional[str], imported_str_value: Optional[str]) -> bool:
+        if str_value is None:
+            str_value = ''
+        if imported_str_value is None:
+            imported_str_value = ''
+        return str_value == imported_str_value
+
     def _comparator(self, entry: Directive, imported_entry: Directive) -> bool:
 
         if type(entry) != type(imported_entry):  # pylint: disable=unidiomatic-typecheck
             return False
 
         FIELDS_COMPARISON = {
-            Open: {'date', 'account', 'currencies', 'booking'},
-            Close: {'date', 'account'},
-            Commodity: {'date', 'currency', 'source_account'},
-            Pad: {'date', 'account', 'source_account'},
-            Balance: {'date', 'account', 'amount'},
-            Transaction: {'date', 'payee', 'narration', 'postings'},
-            Note: {'date', 'account', 'comment'},
-            Event: {'date', 'type', 'description'},
-            Query: {'date', 'query_string'},
-            Price: {'date', 'currency', 'amount'},
-            Document: {'date', 'account', 'filename'},
-            Custom: {'date', 'type', 'values'},
+            Open: ['date', 'account'],
+            Close: ['date', 'account'],
+            Balance: ['date', 'account', 'amount'],
+            Transaction: ['date', 'payee', 'narration', 'postings'],
+            Note: ['date', 'account', 'comment'],
         }
 
         assert type(entry) in FIELDS_COMPARISON.keys(), "Entry type not supported for deduplication"
 
+
         fields = FIELDS_COMPARISON[type(entry)]
-        return all(
-            _comparator(getattr(entry, field), getattr(imported_entry, field), field) for field in fields
-        )
+        for field in fields:
+            field_value_0 = getattr(entry, field, None)
+            field_value_1 = getattr(imported_entry, field, None)
+            if field == 'postings':
+                if not self._compare_postings(field_value_0, field_value_1):
+                    return False
+            elif field in ['payee', 'narration', 'comment']:
+                if not self._compare_optional_strings(field_value_0, field_value_1):
+                    return False
+            else:
+                if field_value_0 != field_value_1:
+                    return False
+
+        return True
 
 
 class Deduplicator():
