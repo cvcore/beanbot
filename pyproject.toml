@@ -3,3 +3,41 @@ log_cli = true
 log_cli_level = "INFO"
 log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
+[tool.poetry]
+name = "beanbot"
+version = "0.1.0"
+description = "Automate personal finance bookings in Beancount"
+authors = [
+    "Chengxin Wang <w@hxdl.org>",
+]
+readme = "README.md"
+repository = "https://github.com/cvcore/beanbot"
+packages = [
+    { include = "beanbot", from = "src" },
+]
+include = [
+    "README.md",
+    "LICENSE",
+]
+
+[tool.poetry.dependencies]
+python = "^3.12.4"
+beancount = "^2.3.6"
+scikit-learn = "^1.5.0"
+numpy = "^1.26.4"
+titlecase = "^2.4.1"
+dateparser = "^1.2.0"
+pandas = "^2.2.2"
+xlrd = "^2.0.1"
+fava = "^1.27.3"
+regex = "^2024.5.15"
+pylint = "^3.2.3"
+yapf = "^0.40.2"
+isort = "^5.13.2"
+parse = "^1.20.2"
+matplotlib = "^3.9.0"
+recordclass = "^0.21.1"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.2.2"

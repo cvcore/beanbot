@@ -1,3 +1,4 @@
+from pathlib import Path
 import subprocess
 
 def run_cli_command():
@@ -10,6 +11,7 @@ def run_cli_command():
     return result.stdout
 
 def read_file_content(filepath):
+    assert Path(filepath).exists(), f"File {filepath} does not exist."
     with open(filepath, 'r') as file:
         content = file.readlines()
     return content
