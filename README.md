@@ -1,5 +1,7 @@
 # BeanBot: Smart Predictor for Beancount Transactions
 
+![Action dispatcher](https://github.com/cvcore/beanbot/actions/workflows/actions-dispatcher.yml/badge.svg)
+
 This repository implements a smart predictor to automatically categorize new beancount transactions with a model learned from historic data. It works by comparing the description of each new transactions with previous ones and assign a predicted category to each new transaction. The description of each transaction is supposed to be imported automatically from your bank.
 
 Please note: this project is currently under development.
