@@ -10,8 +10,11 @@ Transactions = List[Transaction]
 
 Postings = List[Posting]
 
-VectorizedTransactions = namedtuple('VectorizedTransactions', [
-    'vec', # np.ndarray (n_transaction, n_dim): int
-    'label',  # np.ndarray (n_transaction,): int
-    'learnable', # np.ndarray (n_transaction,): bool
-])
+VectorizedTransactions = namedtuple(
+    "VectorizedTransactions",
+    [
+        "vec",  # np.ndarray (n_transaction, n_dim): int
+        "label",  # np.ndarray (n_transaction,): int
+        "learnable",  # np.ndarray (n_transaction,): bool
+    ],
+)

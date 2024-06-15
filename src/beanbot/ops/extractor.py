@@ -1,19 +1,16 @@
 #!/usr/bin/env python
 
 from __future__ import annotations
-from abc import ABC, abstractmethod
 from datetime import date
 import logging
 import numpy as np
-from beancount.core import interpolate
-from beancount.core.data import Transaction, Directive, Entries, Balance
+from beancount.core.data import Transaction, Directive, Entries
 from beancount.core import data
 from beanbot.data import directive
 import regex as re
 from beanbot.common.configs import BeanbotConfig
-from beanbot.common.types import Postings, Transactions
-from beanbot.data.directive import MutableTransaction, MutableBalance
-from typing import List, Union
+from beanbot.common.types import Postings
+from typing import List
 
 
 class BaseExtractor(object):
@@ -27,7 +24,7 @@ class BaseExtractor(object):
         return [self.extract_one(e) for e in entries]
 
     def _extract_one_impl(self, entry: Directive):
-        return NotImplementedError('You need to implement this method in the subclass.')
+        return NotImplementedError("You need to implement this method in the subclass.")
 
     def _type_check(self, entry: Directive) -> None:
         """We do type checking based on the name of the extractor class. The first capitalized word of the class name is the expected type of the entry.
@@ -40,10 +37,14 @@ class BaseExtractor(object):
             AssertionError: If the type of the entry is not compatible with the expected type.
         """
 
-        expected_type_str = re.match(r"[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))", self.__class__.__name__).group()
+        expected_type_str = re.match(
+            r"[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))", self.__class__.__name__
+        ).group()
         expected_type_immutable = getattr(data, expected_type_str)
-        expected_type_mutable = getattr(directive, 'Mutable' + expected_type_str)
-        assert isinstance(entry, (expected_type_immutable, expected_type_mutable)), f"Expected type {expected_type_str}, got {type(entry)}!"
+        expected_type_mutable = getattr(directive, "Mutable" + expected_type_str)
+        assert isinstance(
+            entry, (expected_type_immutable, expected_type_mutable)
+        ), f"Expected type {expected_type_str}, got {type(entry)}!"
 
 
 ################# Extractor for Transactions #################
@@ -57,9 +58,9 @@ class TransactionDescriptionExtractor(BaseExtractor):
         self._prefer_payee = prefer_payee
 
     def _extract_one_impl(self, entry: Transaction) -> str:
-        replace_none = lambda s: s if s is not None else ''
+        replace_none = lambda s: s if s is not None else ""
         # return f"{replace_none(entry.payee)}\r{replace_none(entry.narration)}"
-        result:str = ''
+        result: str = ""
         if entry.payee is not None:
             if self._prefer_payee:
                 result = entry.payee
@@ -77,10 +78,10 @@ class TransactionDescriptionExtractor(BaseExtractor):
         # result = re.sub(r'(?<=\w)\.(?=\w)', '', result)
 
         # remove dots in form of abbreviations e.g. a.b.c.d
-        result = re.sub(r'((?<=(\P{L}|^)\p{L})\.(?=\p{L}(\P{L}|$)))+', '', result)
+        result = re.sub(r"((?<=(\P{L}|^)\p{L})\.(?=\p{L}(\P{L}|$)))+", "", result)
 
         # normalize remaining symbols & whitespaces
-        result = re.sub(r'(\p{Z}|\p{S}|\p{P})+', ' ', result)
+        result = re.sub(r"(\p{Z}|\p{S}|\p{P})+", " ", result)
 
         # normalization: replace european texts with english ones
         result = result.replace("ä", "ae")
@@ -114,7 +115,7 @@ class _TransactionAccountExtractor(_TransactionRegExpExtractor):
             return valid_accounts[0]
         elif len(valid_accounts) == 1:
             return valid_accounts[0]
-        return ''
+        return ""
 
     def _extract_one_impl(self, entry: Transaction) -> str:
         return self.posting_filter_keep_one(entry.postings)
@@ -124,7 +125,7 @@ class TransactionCategoryAccountExtractor(_TransactionAccountExtractor):
     """Extract accounts for categorizing the transactions"""
 
     def __init__(self):
-        regex_category_account = BeanbotConfig.get_global()['regex-category-account']
+        regex_category_account = BeanbotConfig.get_global()["regex-category-account"]
         super().__init__(regex_category_account)
 
 
@@ -132,12 +133,11 @@ class TransactionRecordSourceAccountExtractor(_TransactionAccountExtractor):
     """Extract accounts where the transaction records are generated"""
 
     def __init__(self):
-        source_account_regex = BeanbotConfig.get_global()['regex-source-account']
+        source_account_regex = BeanbotConfig.get_global()["regex-source-account"]
         super().__init__(source_account_regex)
 
 
 class TransactionDateExtractor(BaseExtractor):
-
     def _date_to_int(self, dt: date) -> int:
         return dt.year * 10000 + dt.month * 100 + dt.day
 
@@ -156,40 +156,37 @@ class _TransactionAmountExtractor(_TransactionRegExpExtractor):
                 if self._EXTRACT_SIGN:
                     return np.sign(p.units.number)
                 return p.units.number
-        return 0.
+        return 0.0
 
     def _extract_one_impl(self, entry: Transaction) -> float:
         return self._posting_amount_keep_one(entry.postings)
 
 
 class TransactionCategoryAmountSignExtractor(_TransactionAmountExtractor):
-
     _EXTRACT_SIGN = True
 
     def __init__(self):
-        regex_category_account = BeanbotConfig.get_global()['regex-category-account']
+        regex_category_account = BeanbotConfig.get_global()["regex-category-account"]
         super().__init__(regex_category_account)
 
 
 class TransactionRecordSourceAmountSignExtractor(_TransactionAmountExtractor):
-
     _EXTRACT_SIGN = True
 
     def __init__(self):
-        regex_record_source_account = BeanbotConfig.get_global()['regex-source-account']
+        regex_record_source_account = BeanbotConfig.get_global()["regex-source-account"]
         super().__init__(regex_record_source_account)
 
-class TransactionCategoryAmountExtractor(_TransactionAmountExtractor):
 
+class TransactionCategoryAmountExtractor(_TransactionAmountExtractor):
     def __init__(self):
-        regex_category_account = BeanbotConfig.get_global()['regex-category-account']
+        regex_category_account = BeanbotConfig.get_global()["regex-category-account"]
         super().__init__(regex_category_account)
 
 
 class TransactionRecordSourceAmountExtractor(_TransactionAmountExtractor):
-
     def __init__(self):
-        regex_record_source_account = BeanbotConfig.get_global()['regex-source-account']
+        regex_record_source_account = BeanbotConfig.get_global()["regex-source-account"]
         super().__init__(regex_record_source_account)
 
 
@@ -198,9 +195,9 @@ class TransactionSourceFilenameExtractor(BaseExtractor):
 
     def _extract_one_impl(self, entry: Transaction) -> str:
         try:
-            filename = entry.meta['filename']
+            filename = entry.meta["filename"]
         except KeyError:
-            filename = ''
+            filename = ""
 
         return filename
 
@@ -212,7 +209,7 @@ class TransactionNewPredictionsExtractor(BaseExtractor):
         if entry.tags is None:
             return False
         for tag in entry.tags:
-            if tag.startswith('_new'):
+            if tag.startswith("_new"):
                 return True
         return False
 
@@ -232,14 +229,15 @@ class BalanceSourceFilenameExtractor(BaseExtractor):
 
     def _extract_one_impl(self, entry: data.Balance) -> str:
         try:
-            filename = entry.meta['filename']
+            filename = entry.meta["filename"]
         except KeyError:
-            filename = ''
+            filename = ""
 
         return filename
 
 
 ################# Extractor for Open directives #################
+
 
 class OpenCategoryAccountExtractor(BaseExtractor):
     """Extract account where the balance records are generated"""
@@ -261,14 +259,20 @@ class BaseDirectiveExtractor(BaseExtractor):
 
     def extract_one(self, entry: Directive) -> str:
         """Extract a list of string descriptions from a list of Entries"""
-        assert self.__class__.__name__ != 'BaseDirectiveExtractor', "Calling from base class is not allowed"
+        assert (
+            self.__class__.__name__ != "BaseDirectiveExtractor"
+        ), "Calling from base class is not allowed"
 
-        entry_class_name = entry.__class__.__name__ # Class name of the entry, e.g. Transaction / Balance / Open ...
+        entry_class_name = (
+            entry.__class__.__name__
+        )  # Class name of the entry, e.g. Transaction / Balance / Open ...
         if entry_class_name.startswith("Mutable"):
             entry_class_name = entry_class_name.replace("Mutable", "", 1)
 
-        extractor_type = self.__class__.__name__ # Class name of the extractor, e.g. EntrySourceAccountExtractor / EntrySourceFilenameExtractor
-        extractor_class = extractor_type.replace('Directive', entry_class_name, 1) # get the extractor class name to be used depending on the entry's and the extractor's class name
+        extractor_type = self.__class__.__name__  # Class name of the extractor, e.g. EntrySourceAccountExtractor / EntrySourceFilenameExtractor
+        extractor_class = extractor_type.replace(
+            "Directive", entry_class_name, 1
+        )  # get the extractor class name to be used depending on the entry's and the extractor's class name
 
         if extractor_class not in self._extractor_cache:
             if extractor_class in globals():
@@ -281,7 +285,7 @@ class BaseDirectiveExtractor(BaseExtractor):
 
         extractor = self._extractor_cache[extractor_class]
         if extractor is None:
-            return ''
+            return ""
         return extractor.extract_one(entry)
 
 

@@ -2,23 +2,21 @@ import datetime
 from typing import Any, Dict, List, Optional, OrderedDict, Callable
 from types import NoneType
 from uuid import uuid4
-from numpy import column_stack
 
 from pandas import DataFrame
-from pydantic import BaseModel
 from beanbot.data.directive import MutableTransaction
 from beanbot.data.entries import MutableEntriesContainer
 import streamlit as st
 
-from beanbot.ops.extractor import BaseExtractor
 
 from dataclasses import dataclass
 
-class OpenedAccount(str):
-    ...
+
+class OpenedAccount(str): ...
+
 
 @dataclass
-class ColumnConfig():
+class ColumnConfig:
     """Class storing the column configuration.
 
     Args:
@@ -56,7 +54,12 @@ class ColumnConfig():
 class StreamlitDataEditorAdapter:
     """Adapter class to support editing BeanBotEntries by handling necessary conversions between the dataframes and the entries."""
 
-    def __init__(self, bb_entries: MutableEntriesContainer, column_configs: List[ColumnConfig], editor_config: Optional[Dict] = None) -> None:
+    def __init__(
+        self,
+        bb_entries: MutableEntriesContainer,
+        column_configs: List[ColumnConfig],
+        editor_config: Optional[Dict] = None,
+    ) -> None:
         """Initialize the adapter with given entries.
 
         Args:
@@ -67,7 +70,11 @@ class StreamlitDataEditorAdapter:
 
         self._bb_entries = bb_entries
         self._column_configs = OrderedDict([(c.id, c) for c in column_configs])
-        self._editor_config = editor_config if editor_config is not None else self._get_default_editor_config()
+        self._editor_config = (
+            editor_config
+            if editor_config is not None
+            else self._get_default_editor_config()
+        )
         self._editor_key = str(uuid4())[-8:]
         self._editor_state = {}
         self._editor_row_to_id = {}
@@ -85,17 +92,18 @@ class StreamlitDataEditorAdapter:
             print(f"[DEBUG] Editor state: {self._editor_state}")
             # edited_rows = st.session_state[key]["edited_rows"]
 
-
-
         return update_editor_state
 
     def get_dataframe(self) -> DataFrame:
         bb_entries_df = self._bb_entries.as_dataframe(
             selected_entry_type=MutableTransaction,
-            selected_columns=self.get_visible_columns() + ["entry_id"],  # add id field for easier queries
+            selected_columns=self.get_visible_columns()
+            + ["entry_id"],  # add id field for easier queries
         )
         # bb_entries_df.insert(0, "Select", False, allow_duplicates=False)
-        self._editor_row_to_id = {idx: row.entry_id for idx, row in bb_entries_df.iterrows()}
+        self._editor_row_to_id = {
+            idx: row.entry_id for idx, row in bb_entries_df.iterrows()
+        }
 
         return bb_entries_df
 
@@ -125,7 +133,9 @@ class StreamlitDataEditorAdapter:
             elif config.dtype == bool:
                 column_cls = st.column_config.CheckboxColumn
             else:
-                raise NotImplementedError(f"Support not implemented for dtype {config.dtype}!")
+                raise NotImplementedError(
+                    f"Support not implemented for dtype {config.dtype}!"
+                )
 
             config_dict[config.id] = column_cls(**column_args)
 
@@ -177,7 +187,7 @@ class StreamlitDataEditorAdapter:
                     if col_config.entry_setter_fn is not None:
                         orig_value = getattr(
                             self._bb_entries.get_entry_by_id(entry_id),
-                            col_config.linked_entry_field
+                            col_config.linked_entry_field,
                         )
                         upd_value = col_config.entry_setter_fn(orig_value, col_change)
                     else:

@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-from abc import ABCMeta, abstractmethod
-from typing import Dict, Union
+from typing import Dict
 
-from beanbot.classifier.abstract_transaction_classifier import \
-    AbstractTransactionClassifier
+from beanbot.classifier.abstract_transaction_classifier import (
+    AbstractTransactionClassifier,
+)
 from beanbot.common.types import Transactions
-from beanbot.ops.extractor import (TransactionCategoryAccountExtractor,
-                                   TransactionDescriptionExtractor)
+from beanbot.ops.extractor import (
+    TransactionCategoryAccountExtractor,
+    TransactionDescriptionExtractor,
+)
 from beanbot.ops.filter import BalancedTransactionFilter
-from beanbot.vectorizer.abstract_vectorizer import AbstractVectorizer
 from beancount.core import interpolate
 
 
@@ -19,7 +20,7 @@ class MappingTransactionClassifier(AbstractTransactionClassifier):
 
     This class only predicts unbalanced transactions that are previously seen and do not have any ambiguity."""
 
-    ADD_TAG = '_new_map'
+    ADD_TAG = "_new_map"
 
     def __init__(self, options_map: Dict):
         super().__init__(options_map, add_tags={self.ADD_TAG})
@@ -31,19 +32,23 @@ class MappingTransactionClassifier(AbstractTransactionClassifier):
 
     def train(self, transactions: Transactions):
         """Train the classifier using only balanced transactions"""
-        transactions_train = BalancedTransactionFilter(self._options_map).filter(transactions)
+        transactions_train = BalancedTransactionFilter(self._options_map).filter(
+            transactions
+        )
 
         descriptions = self._desc_extractor.extract(transactions_train)
         categories = self._cat_extractor.extract(transactions_train)
 
         for desc, cat in zip(descriptions, categories):
-            if desc in self._desc_ignore or desc == '' or cat == '':
+            if desc in self._desc_ignore or desc == "" or cat == "":
                 continue
 
             if desc in self._desc_to_cat:
                 if cat != self._desc_to_cat[desc]:
                     # debug
-                    print(f"Dropping ambiguous case: Desc: {desc} Cat: {cat} PrevCat: {self._desc_to_cat[desc]}")
+                    print(
+                        f"Dropping ambiguous case: Desc: {desc} Cat: {cat} PrevCat: {self._desc_to_cat[desc]}"
+                    )
 
                     self._desc_ignore.add(desc)
                     self._desc_to_cat.pop(desc)

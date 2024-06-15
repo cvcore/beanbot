@@ -8,8 +8,11 @@ from beancount.core import interpolate, number
 
 def is_residual_posting(posting: Posting) -> bool:
     try:
-        is_residual = (posting.units is number.MISSING) or \
-            (posting.meta is not None and '__automatic__' in posting.meta and posting.meta['__automatic__'])
+        is_residual = (posting.units is number.MISSING) or (
+            posting.meta is not None
+            and "__automatic__" in posting.meta
+            and posting.meta["__automatic__"]
+        )
     except AttributeError:
         is_residual = False
 
@@ -34,10 +37,15 @@ def is_balanced(transaction: Transaction, options_map: Dict) -> bool:
 def is_predicted(transaction: Transaction) -> bool:
     """If transaction has tag started with `_new`, treat it as a predicted transaction."""
 
-    return any(map(lambda tag: re.match(r'_new', tag), transaction.tags))
+    return any(map(lambda tag: re.match(r"_new", tag), transaction.tags))
 
 
-def is_internal_transfer(transaction_a: Transaction, transaction_b: Transaction, max_timediff: Optional[int]=None, max_unitsdiff: Optional[Decimal]=None) -> bool:
+def is_internal_transfer(
+    transaction_a: Transaction,
+    transaction_b: Transaction,
+    max_timediff: Optional[int] = None,
+    max_unitsdiff: Optional[Decimal] = None,
+) -> bool:
     """Test if transaction_a and transaction_b belongs to the same internal transfer from one own bank to the other one.
 
     Parameters
@@ -62,12 +70,16 @@ def is_internal_transfer(transaction_a: Transaction, transaction_b: Transaction,
     if max_timediff is None:
         max_timediff = 0
     if max_unitsdiff is None:
-        max_unitsdiff = Decimal(0.)
+        max_unitsdiff = Decimal(0.0)
 
-    if transaction_a.postings[0].account != transaction_b.postings[1].account and \
-        transaction_a.postings[0].units.number + transaction_b.postings[0].units.number < max_unitsdiff and \
-        transaction_a.postings[0].units.currency == transaction_b.units.currency and \
-        timediff.days <= max_timediff:
+    if (
+        transaction_a.postings[0].account != transaction_b.postings[1].account
+        and transaction_a.postings[0].units.number
+        + transaction_b.postings[0].units.number
+        < max_unitsdiff
+        and transaction_a.postings[0].units.currency == transaction_b.units.currency
+        and timediff.days <= max_timediff
+    ):
         return True
 
     return False

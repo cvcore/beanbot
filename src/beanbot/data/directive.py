@@ -17,7 +17,12 @@ def _from_immutable(cls: type, obj: bd.Directive) -> "MutableDirective":
         if type(value) in _MAP_TO_MUTABLE_DIRECTIVE:
             fields_dict[key] = _from_immutable(type(value), value)
         elif isinstance(value, list):
-            value = [v if type(v) not in _MAP_TO_MUTABLE_DIRECTIVE else _from_immutable(type(v), v) for v in value]
+            value = [
+                v
+                if type(v) not in _MAP_TO_MUTABLE_DIRECTIVE
+                else _from_immutable(type(v), v)
+                for v in value
+            ]
             fields_dict[key] = value
         else:
             fields_dict[key] = value
@@ -33,7 +38,10 @@ def _to_immutable(obj: "MutableDirective") -> bd.Directive:
         if type(value) in _MAP_TO_IMMUTABLE_DIRECTIVE:
             fields_dict[key] = _to_immutable(value)
         elif isinstance(value, list):
-            value = [v if type(v) not in _MAP_TO_IMMUTABLE_DIRECTIVE else _to_immutable(v) for v in value]
+            value = [
+                v if type(v) not in _MAP_TO_IMMUTABLE_DIRECTIVE else _to_immutable(v)
+                for v in value
+            ]
             fields_dict[key] = value
         else:
             fields_dict[key] = value
@@ -41,7 +49,9 @@ def _to_immutable(obj: "MutableDirective") -> bd.Directive:
 
 
 def _make_mutable_type(immutable_type: type) -> type:
-    mutable_type = recordclass("Mutable" + immutable_type.__name__, immutable_type._fields)
+    mutable_type = recordclass(
+        "Mutable" + immutable_type.__name__, immutable_type._fields
+    )
     mutable_type.from_immutable = _from_immutable
     mutable_type.to_immutable = _to_immutable
     _MAP_TO_MUTABLE_DIRECTIVE[immutable_type] = mutable_type

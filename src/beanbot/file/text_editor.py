@@ -44,26 +44,38 @@ class ChangeSet:
 
     def __post_init__(self):
         # Verify content
-        if self.type in {ChangeType.INSERT, ChangeType.REPLACE, ChangeType.APPEND} and self.content is None:
+        if (
+            self.type in {ChangeType.INSERT, ChangeType.REPLACE, ChangeType.APPEND}
+            and self.content is None
+        ):
             raise ValueError(f"content is required for {self.type}")
 
         # Verify position
         if self.type in {ChangeType.INSERT}:
-            assert self.position is not None and isinstance(self.position, int), f"position must be an integer for {self.type}"
+            assert self.position is not None and isinstance(
+                self.position, int
+            ), f"position must be an integer for {self.type}"
         elif self.type in {ChangeType.DELETE, ChangeType.REPLACE}:
-            assert self.position is not None and isinstance(self.position, tuple) and len(self.position) == 2, f"position must be a tuple of two integers for {self.type} with (begin, end)"
+            assert (
+                self.position is not None
+                and isinstance(self.position, tuple)
+                and len(self.position) == 2
+            ), f"position must be a tuple of two integers for {self.type} with (begin, end)"
 
         if self.type in {ChangeType.APPEND}:
-            assert self.position is None, f"position must be None for {self.type}, as we only support appending to the end of the file."
+            assert (
+                self.position is None
+            ), f"position must be None for {self.type}, as we only support appending to the end of the file."
 
-        assert isinstance(self.content, list | NoneType), f"content must be a list of strings for {self.type}"
+        assert isinstance(
+            self.content, list | NoneType
+        ), f"content must be a list of strings for {self.type}"
 
     def __repr__(self) -> str:
         return f"ChangeSet(\ntype={self.type},\nposition={self.position},\ncontent={self.content})"
 
 
 class TextEditor:
-
     def __init__(self, file_path: str, encoding: str = "utf-8") -> None:
         """
         Initialize a TextEditor with given file path.
@@ -82,9 +94,11 @@ class TextEditor:
         self._changes = []
 
     def _read_file(self, file_path: str) -> List[str]:
-        with open(file_path, 'r', encoding=self._encoding) as file:
+        with open(file_path, "r", encoding=self._encoding) as file:
             lines = file.readlines()
-        lines.append('')  # note: we add this empty line to be able to address the position after the last line with -1
+        lines.append(
+            ""
+        )  # note: we add this empty line to be able to address the position after the last line with -1
         return lines
 
     def edit(self, changes: List[ChangeSet] | ChangeSet) -> None:
@@ -124,17 +138,21 @@ class TextEditor:
         for idx in range(len(self._changes) - 1):
             edit_begin, edit_end = self._get_position_tuple(self._changes[idx])
             next_begin, next_end = self._get_position_tuple(self._changes[idx + 1])
-            assert not edit_begin <= next_begin < edit_end, f"Changes {self._changes[idx]} and {self._changes[idx + 1]} are overlapping."
+            assert (
+                not edit_begin <= next_begin < edit_end
+            ), f"Changes {self._changes[idx]} and {self._changes[idx + 1]} are overlapping."
 
             if edit_begin == edit_end:
-                assert not next_begin == next_end == edit_begin, f"Double insertion at position {edit_begin} detected."
-
+                assert (
+                    not next_begin == next_end == edit_begin
+                ), f"Double insertion at position {edit_begin} detected."
 
     def _check_range_validity(self, line_count: int):
         for change in self._changes:
             position = self._get_position_tuple(change)
-            assert position == (inf, inf) or \
-                (0 <= position[0] <= position[1] < line_count), f"Change {change} is invalid."
+            assert position == (inf, inf) or (
+                0 <= position[0] <= position[1] < line_count
+            ), f"Change {change} is invalid."
 
     def save_changes(self, to_path: Optional[str] = None):
         """
@@ -157,14 +175,17 @@ class TextEditor:
 
         change_idx = 0
         line_idx = 0
-        while line_idx < len(lines) - 1:  # ignore the last empty line added when reading
-
+        while (
+            line_idx < len(lines) - 1
+        ):  # ignore the last empty line added when reading
             # No more changes to apply
             if change_idx >= len(self._changes):
                 edited_lines.extend(lines[line_idx:])
                 break
 
-            change_begin, change_end = self._get_position_tuple(self._changes[change_idx])
+            change_begin, change_end = self._get_position_tuple(
+                self._changes[change_idx]
+            )
 
             # Next change is append
             if change_begin == inf:
@@ -200,5 +221,5 @@ class TextEditor:
                 assert False, f"Unexpected change type {self._changes[change_idx].type}"
 
         save_path = to_path if to_path is not None else self._file_path
-        with open(save_path, 'w', encoding=self._encoding) as file:
+        with open(save_path, "w", encoding=self._encoding) as file:
             file.writelines(edited_lines)

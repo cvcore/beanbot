@@ -12,7 +12,6 @@ from beancount.loader import load_file
 
 
 class Config:
-
     _shared_instance = None
 
     def __init__(self, allow_missing=False):
@@ -22,7 +21,9 @@ class Config:
         self._allow_missing = allow_missing
         self._fully_initialized = False
 
-    def add_value(self, conf_name: str, conf_type: type, default_value: Optional[Any]=None):
+    def add_value(
+        self, conf_name: str, conf_type: type, default_value: Optional[Any] = None
+    ):
         """Define configuration with type and name"""
         self._config_types[conf_name] = conf_type
         if default_value is not None:
@@ -56,7 +57,11 @@ class Config:
         as defined in the `add_config` method. In case an unknown config is encountered,
         an exception will be raised.
         """
-        custom_configs = [entry for entry in entries if isinstance(entry, Custom) and entry.type == 'beanbot-config']
+        custom_configs = [
+            entry
+            for entry in entries
+            if isinstance(entry, Custom) and entry.type == "beanbot-config"
+        ]
 
         for custom_config in custom_configs:
             self._parse_single(custom_config)
@@ -70,11 +75,15 @@ class Config:
     def _parse_single(self, custom_config: Custom):
         """Parse single config and add to dictionary"""
 
-        assert custom_config.type == 'beanbot-config' and len(custom_config.values) == 2, f"Got invalid config {custom_config}"
+        assert (
+            custom_config.type == "beanbot-config" and len(custom_config.values) == 2
+        ), f"Got invalid config {custom_config}"
 
         conf_name = custom_config.values[0].value
         conf_value = custom_config.values[1].value
-        assert conf_name in self._config_types.keys(), f"Got unknown config name {conf_name}"
+        assert (
+            conf_name in self._config_types.keys()
+        ), f"Got unknown config name {conf_name}"
         if type(conf_value) != self._config_types[conf_name]:
             conf_value = self._config_types[conf_name](conf_value)
 
@@ -86,17 +95,20 @@ class Config:
     def _check_completeness(self):
         """Check if all configuration has been set."""
         if not self._fully_initialized:
-            missing_keys = [key for key in self._config_types.keys() if key not in self._config_values.keys()]
+            missing_keys = [
+                key
+                for key in self._config_types.keys()
+                if key not in self._config_values.keys()
+            ]
             raise RuntimeError(f"Mandatory configurations missing: {missing_keys}")
 
 
 class BeanbotConfig(Config):
-
     def __init__(self, allow_missing=False):
         super().__init__(allow_missing)
 
-        self.add_value('main-file', str)
-        self.add_value('fallback-transaction-file', str)
-        self.add_value('regex-source-account', str)
-        self.add_value('regex-category-account', str)
-        self.add_value('dedup-window-days', int)
+        self.add_value("main-file", str)
+        self.add_value("fallback-transaction-file", str)
+        self.add_value("regex-source-account", str)
+        self.add_value("regex-category-account", str)
+        self.add_value("dedup-window-days", int)

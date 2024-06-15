@@ -2,10 +2,8 @@
 # coding=utf-8
 # Filtering the transactions
 
-from abc import ABC, abstractmethod
-from typing import FrozenSet, List, Optional, Set
-from beancount.core import data, interpolate
-import regex as re
+from typing import Optional
+from beancount.core import data
 from beanbot.common.types import Transactions
 
 from beanbot.ops.conditions import is_balanced, is_internal_transfer, is_predicted
@@ -28,7 +26,7 @@ class BaseFilter:
     def filter(self, entries: data.Entries) -> data.Entries:
         if self.__class__ == BaseFilter:
             return entries
-        if hasattr(super(), 'filter'):
+        if hasattr(super(), "filter"):
             entries = super().filter()
         return self._filter_impl(entries)
 
@@ -47,12 +45,12 @@ class BaseFilter:
 
 class TransactionFilter(BaseFilter):
     """Filter that only passes transactions"""
+
     def _cond_impl(self, entry: data.Directive) -> bool:
         return isinstance(entry, data.Transaction)
 
 
 class NotTransactionFilter(TransactionFilter):
-
     def __init__(self) -> None:
         super().__init__()
         self._inverse_condition = True
@@ -76,34 +74,33 @@ class UnbalancedTransactionFilter(BalancedTransactionFilter):
         super().__init__(options_map)
         self._inverse_condition = True
 
+        # class MostRecentTransactionFilter(TransactionFilter):
+        #     """If more than one transaction has the same description, keep the one with the most recent date.
 
-# class MostRecentTransactionFilter(TransactionFilter):
-#     """If more than one transaction has the same description, keep the one with the most recent date.
+        #     The results are expected to have a stable ordering, i.e. the order of output always respect the order of the original input."""
 
-#     The results are expected to have a stable ordering, i.e. the order of output always respect the order of the original input."""
+        #     def __init__(self, extractor: AbstractTransactionExtractor):
+        #         super().__init__()
+        #         self._extractor = extractor
 
-#     def __init__(self, extractor: AbstractTransactionExtractor):
-#         super().__init__()
-#         self._extractor = extractor
+        #     def filter(self, transactions: List[data.Transaction]) -> List[data.Transaction]:
 
-#     def filter(self, transactions: List[data.Transaction]) -> List[data.Transaction]:
+        #         descriptions = self._extractor.extract(transactions)
+        #         desc_to_idx = {}
 
-#         descriptions = self._extractor.extract(transactions)
-#         desc_to_idx = {}
+        #         for txn_idx, (txn, desc) in enumerate(zip(transactions, descriptions)):
+        #             date_txn = txn.date
+        #             if desc in desc_to_idx:
+        #                 date_prev = transactions[desc_to_idx[desc]].date
+        #                 if date_txn > date_prev:
+        #                     desc_to_idx[desc] = txn_idx
+        #             else:
+        #                 desc_to_idx[desc] = txn_idx
 
-#         for txn_idx, (txn, desc) in enumerate(zip(transactions, descriptions)):
-#             date_txn = txn.date
-#             if desc in desc_to_idx:
-#                 date_prev = transactions[desc_to_idx[desc]].date
-#                 if date_txn > date_prev:
-#                     desc_to_idx[desc] = txn_idx
-#             else:
-#                 desc_to_idx[desc] = txn_idx
+        #         indices_latest = sorted(desc_to_idx.values())
+        #         transactions_latest = [transactions[idx] for idx in indices_latest]
 
-#         indices_latest = sorted(desc_to_idx.values())
-#         transactions_latest = [transactions[idx] for idx in indices_latest]
-
-        return transactions_latest
+        # return transactions_latest
 
 
 class PredictedTransactionFilter(TransactionFilter):
@@ -120,7 +117,11 @@ class NonduplicatedTransactionFilter(TransactionFilter):
         `existing_transactions`: (optional, Transactions) if specified, compare also with existing transactions for duplicate filtering.
         `accepted_delay`: (optional, int) maximum number of delay in days for duplicate detection"""
 
-    def __init__(self, existing_transactions: Optional[Transactions]=None, accepted_delay: Optional[int]=None):
+    def __init__(
+        self,
+        existing_transactions: Optional[Transactions] = None,
+        accepted_delay: Optional[int] = None,
+    ):
         self._existing_transactions = existing_transactions
         self._accepted_delay = accepted_delay
 
@@ -131,13 +132,17 @@ class NonduplicatedTransactionFilter(TransactionFilter):
             entry_valid = True
             for entry_next in entries[idx:]:
                 if is_internal_transfer(entry, entry_next):
-                    print(f"Found duplicate entries in new transactions:\n{entry_next}\n{entry}")
+                    print(
+                        f"Found duplicate entries in new transactions:\n{entry_next}\n{entry}"
+                    )
                     entry_valid = False
                     break
             if self._existing_transactions is not None:
                 for entry_next in self._existing_transactions:
                     if is_internal_transfer(entry, entry_next):
-                        print(f"Found duplicate entries in existing transactions:\n{entry_next}\n{entry}")
+                        print(
+                            f"Found duplicate entries in existing transactions:\n{entry_next}\n{entry}"
+                        )
                         entry_valid = False
                         break
 

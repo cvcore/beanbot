@@ -1,9 +1,7 @@
 from datetime import date
 import os
-from sqlite3 import adapt
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from uuid import UUID
-import pytest
 from beanbot.common.configs import BeanbotConfig
 import pandas as pd
 
@@ -15,9 +13,7 @@ from beanbot.data.adapter import ColumnConfig
 
 from beanbot.ops import extractor
 from beanbot.ops.conditions import is_predicted
-from beanbot.file.saver import EntryFileSaver
-from beanbot.ops.filter import PredictedTransactionFilter
-from beanbot.ui.factory import BeanbotDataEditorFactory, _setter_fn_new_prediction, _setter_fn_pred_account
+from beanbot.ui.factory import _setter_fn_new_prediction, _setter_fn_pred_account
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 TEST_FILE = os.environ.get("BEANBOT_FILE", None)
 assert TEST_FILE is not None, "BEANBOT_FILE environment variable must be set!"
+
 
 @st.cache_resource
 def get_entries_container(file: str) -> MutableEntriesContainer:
@@ -43,7 +40,9 @@ def get_entries_container(file: str) -> MutableEntriesContainer:
 
 
 @st.cache_resource
-def get_adapter(_entries: MutableEntriesContainer, filters: Optional[Dict] = None) -> StreamlitDataEditorAdapter:
+def get_adapter(
+    _entries: MutableEntriesContainer, filters: Optional[Dict] = None
+) -> StreamlitDataEditorAdapter:
     print("Creating adapter from entries")
 
     ext_new_predictions = extractor.DirectiveNewPredictionsExtractor()
@@ -52,23 +51,49 @@ def get_adapter(_entries: MutableEntriesContainer, filters: Optional[Dict] = Non
     ext_cat_account = extractor.DirectiveCategoryAccountExtractor()
     ext_cat_amount = extractor.DirectiveCategoryAmountExtractor()
 
-    _entries.attach_extractors({
-        "new_predictions": ext_new_predictions,
-        "descriptions": ext_descriptions,
-        "source_account": ext_source_account,
-        "category_account": ext_cat_account,
-        "category_amount": ext_cat_amount,
-    })
+    _entries.attach_extractors(
+        {
+            "new_predictions": ext_new_predictions,
+            "descriptions": ext_descriptions,
+            "source_account": ext_source_account,
+            "category_account": ext_cat_account,
+            "category_amount": ext_cat_amount,
+        }
+    )
 
-    return StreamlitDataEditorAdapter(_entries, [
-        ColumnConfig("date", "Date", date, "The date of the transaction."),
-        ColumnConfig("new_predictions", "New Prediction", bool, "Is the transaction category newly predicted?", linked_entry_field="tags", editable=True, entry_setter_fn=_setter_fn_new_prediction),
-        ColumnConfig("category_account", "Category", OpenedAccount, "The transaction category.", linked_entry_field="postings", editable=True, entry_setter_fn=_setter_fn_pred_account),
-        ColumnConfig("category_amount", "Amount", float, "The transaction amount."),
-        ColumnConfig("payee", "Payee", str, "The transaction payee"),
-        ColumnConfig("narration", "Narration", str, "The transaction narration."),
-        ColumnConfig("source_account", "Booked On", str, "Which account is the tranaction booked on?"),
-    ])
+    return StreamlitDataEditorAdapter(
+        _entries,
+        [
+            ColumnConfig("date", "Date", date, "The date of the transaction."),
+            ColumnConfig(
+                "new_predictions",
+                "New Prediction",
+                bool,
+                "Is the transaction category newly predicted?",
+                linked_entry_field="tags",
+                editable=True,
+                entry_setter_fn=_setter_fn_new_prediction,
+            ),
+            ColumnConfig(
+                "category_account",
+                "Category",
+                OpenedAccount,
+                "The transaction category.",
+                linked_entry_field="postings",
+                editable=True,
+                entry_setter_fn=_setter_fn_pred_account,
+            ),
+            ColumnConfig("category_amount", "Amount", float, "The transaction amount."),
+            ColumnConfig("payee", "Payee", str, "The transaction payee"),
+            ColumnConfig("narration", "Narration", str, "The transaction narration."),
+            ColumnConfig(
+                "source_account",
+                "Booked On",
+                str,
+                "Which account is the tranaction booked on?",
+            ),
+        ],
+    )
 
 
 @st.cache_resource
@@ -77,16 +102,16 @@ def get_dataframe(_adapter, filters: Optional[Dict] = None) -> pd.DataFrame:
     return _adapter.get_dataframe()
 
 
-
 def is_new_prediction(entry: directive.MutableTransaction) -> bool:
     return isinstance(entry, directive.MutableTransaction) and is_predicted(entry)
-
 
 
 # streamlit use wide mode
 st.set_page_config(layout="wide")
 st.header("🫘 Beanbot Data Editor")
-st.text("The following data are imported from the transaction file, please check their correctness and make changes if necessary.")
+st.text(
+    "The following data are imported from the transaction file, please check their correctness and make changes if necessary."
+)
 
 entries_container = get_entries_container(TEST_FILE)
 # entries = entries_orig.filter(is_new_prediction)

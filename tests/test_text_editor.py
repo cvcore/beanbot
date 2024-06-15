@@ -2,11 +2,12 @@ import tempfile
 from typing import List
 from pathlib import Path
 from beanbot.file.text_editor import TextEditor, ChangeSet, ChangeType
-import tempfile
+
 
 class TestTextEditor:
-
-    def run_test_case(self, input_file: str, expect_file: str, changes: List[ChangeSet]):
+    def run_test_case(
+        self, input_file: str, expect_file: str, changes: List[ChangeSet]
+    ):
         text_editor = TextEditor(input_file)
         text_editor.edit(changes)
 
@@ -14,11 +15,11 @@ class TestTextEditor:
             save_path = str(Path(temp_dir) / "output.txt")
             text_editor.save_changes(to_path=save_path)
 
-            with open(save_path, 'r', encoding='utf-8') as file:
+            with open(save_path, "r", encoding="utf-8") as file:
                 modified_content = file.readlines()
 
             # Read the expected output file
-            with open(expect_file, 'r', encoding='utf-8') as file:
+            with open(expect_file, "r", encoding="utf-8") as file:
                 expected_content = file.readlines()
 
             # Assert that the modified content matches the expected content
@@ -32,7 +33,9 @@ class TestTextEditor:
 
         changes = [
             ChangeSet(ChangeType.INSERT, position=0, content=["a0\n", "a1\n", "a2\n"]),
-            ChangeSet(ChangeType.INSERT, position=6, content=["a3\n", "a4\n", "a5\n", "\n"]),
+            ChangeSet(
+                ChangeType.INSERT, position=6, content=["a3\n", "a4\n", "a5\n", "\n"]
+            ),
         ]
 
         self.run_test_case(input_file, expect_file, changes)
@@ -69,8 +72,14 @@ class TestTextEditor:
         expect_file = "tests/data/file_editor/test_replace_expect.txt"
 
         changes = [
-            ChangeSet(ChangeType.REPLACE, position=(0, 2), content=["a0\n", "a1\n", "a2\n"]),
-            ChangeSet(ChangeType.REPLACE, position=(3, 5), content=["a3\n", "a4\n", "a5\n", "\n"]),
+            ChangeSet(
+                ChangeType.REPLACE, position=(0, 2), content=["a0\n", "a1\n", "a2\n"]
+            ),
+            ChangeSet(
+                ChangeType.REPLACE,
+                position=(3, 5),
+                content=["a3\n", "a4\n", "a5\n", "\n"],
+            ),
         ]
 
         self.run_test_case(input_file, expect_file, changes)

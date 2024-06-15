@@ -8,14 +8,15 @@ from collections import defaultdict
 from beancount.core import data
 from beancount.parser import printer
 
-from beanbot.ops.extractor import DirectiveRecordSourceAccountExtractor, DirectiveSourceFilenameExtractor
+from beanbot.ops.extractor import (
+    DirectiveRecordSourceAccountExtractor,
+    DirectiveSourceFilenameExtractor,
+)
 from beanbot.ops.filter import PredictedTransactionFilter
 from beanbot.common.collections import defaultdictstateless
 
 
-
-class EntryFileSaver():
-
+class EntryFileSaver:
     def __init__(self, default_location) -> None:
         self._account_to_filename = defaultdictstateless(lambda: default_location)
         self._sa_extractor = DirectiveRecordSourceAccountExtractor()
@@ -29,11 +30,13 @@ class EntryFileSaver():
         filenames = self._filename_extractor.extract(entries)
 
         for account, filename in zip(source_accounts, filenames):
-            if account == '' or filename == '':
+            if account == "" or filename == "":
                 continue
 
             if account in self._account_to_filename:
-                assert filename == self._account_to_filename[account], f"Detected conflicts in storage location for account: {account}.\nExpected: {self._account_to_filename[account]}\Got:{filename}"
+                assert (
+                    filename == self._account_to_filename[account]
+                ), f"Detected conflicts in storage location for account: {account}.\nExpected: {self._account_to_filename[account]}\nGot:{filename}"
             else:
                 self._account_to_filename[account] = filename
 
@@ -50,12 +53,16 @@ class EntryFileSaver():
         for filename, entries in entries_to_append.items():
             self._append_entries_to_file(entries, filename, dryrun)
 
-    def _append_entries_to_file(self, transactions: data.Entries, filename: str, dryrun: bool=False):
+    def _append_entries_to_file(
+        self, transactions: data.Entries, filename: str, dryrun: bool = False
+    ):
         """Save a list of `Transaction`s into `filename`"""
 
         if dryrun:
-            print(f"*************************************\n[Dryrun] The following transactions will be saved to\n{filename}\n*************************************")
+            print(
+                f"*************************************\n[Dryrun] The following transactions will be saved to\n{filename}\n*************************************"
+            )
             printer.print_entries(transactions, file=sys.stdout)
         else:
-            with open(filename, 'a') as file:
+            with open(filename, "a") as file:
                 printer.print_entries(transactions, file=file)
