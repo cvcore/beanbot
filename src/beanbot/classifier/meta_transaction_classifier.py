@@ -7,14 +7,19 @@ If it fails, will fallback to decision tree and mark the transaction as uncertai
 
 from typing import Dict
 
-from beanbot.classifier.abstract_transaction_classifier import AbstractTransactionClassifier
-from beanbot.classifier.decision_tree_transaction_classifier import DecisionTreeTransactionClassifier
-from beanbot.classifier.mapping_transaction_classifier import MappingTransactionClassifier
+from beanbot.classifier.abstract_transaction_classifier import (
+    AbstractTransactionClassifier,
+)
+from beanbot.classifier.decision_tree_transaction_classifier import (
+    DecisionTreeTransactionClassifier,
+)
+from beanbot.classifier.mapping_transaction_classifier import (
+    MappingTransactionClassifier,
+)
 from beanbot.common.types import Transactions
 
 
 class MetaTransactionClassifier(AbstractTransactionClassifier):
-
     def __init__(self, options_map: Dict):
         super().__init__(options_map)
         self._dt_classifier = DecisionTreeTransactionClassifier(options_map)

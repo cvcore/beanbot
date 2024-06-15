@@ -12,13 +12,23 @@ from beancount.core.data import Directive, Posting, TxnPosting, Booking
 from beancount.core.amount import Amount
 from beancount.core.position import Cost, CostSpec
 
+
 class _DummyType:
     pass
+
 
 # The Listlike and Dictlike types will be first converted to a magic tuple (a 3-tuple containing the type info),
 # then serialized as a list or dict respectively.
 Listlike = _DummyType
-Dictlike = Directive | ImmutableDictWithDefault | Posting | TxnPosting | Amount | Cost | CostSpec
+Dictlike = (
+    Directive
+    | ImmutableDictWithDefault
+    | Posting
+    | TxnPosting
+    | Amount
+    | Cost
+    | CostSpec
+)
 
 # The Primitives types are natively json-serializable.
 Primitives = str | int | float | bool | NoneType
@@ -51,10 +61,14 @@ _DEFAULT_FN_DESERIALIZE = {
 }
 
 
-def _serialize_object_to_tuple(obj: Any, fn_serialize: Optional[Dict[type, Callable]] = None) -> Tuple[str, str, List]:
+def _serialize_object_to_tuple(
+    obj: Any, fn_serialize: Optional[Dict[type, Callable]] = None
+) -> Tuple[str, str, List]:
     assert type(obj) in fn_serialize, f"Cannot serialize type {type(obj)}"
     serialized_args = fn_serialize[type(obj)](obj)
-    assert isinstance(serialized_args, list), f"Serialized arguments must be a list, got {type(serialized_args)}"
+    assert isinstance(
+        serialized_args, list
+    ), f"Serialized arguments must be a list, got {type(serialized_args)}"
     return (
         _MAGIC_STR_SER_OBJ,
         obj.__class__.__name__,
@@ -63,12 +77,16 @@ def _serialize_object_to_tuple(obj: Any, fn_serialize: Optional[Dict[type, Calla
 
 
 def _is_serialized_tuple(obj: object) -> bool:
-    return isinstance(obj, (tuple, list)) and \
-        len(obj) == 3 and \
-        obj[0] in [_MAGIC_STR_SER_DICT, _MAGIC_STR_SER_LIST, _MAGIC_STR_SER_OBJ]
+    return (
+        isinstance(obj, (tuple, list))
+        and len(obj) == 3
+        and obj[0] in [_MAGIC_STR_SER_DICT, _MAGIC_STR_SER_LIST, _MAGIC_STR_SER_OBJ]
+    )
 
 
-def serialize_object(obj: object, fn_serialize: Optional[Dict[type, Callable]] = None) -> Dict | List | Tuple:
+def serialize_object(
+    obj: object, fn_serialize: Optional[Dict[type, Callable]] = None
+) -> Dict | List | Tuple:
     """Make an object json-serializable.
 
     Args:
@@ -92,12 +110,15 @@ def serialize_object(obj: object, fn_serialize: Optional[Dict[type, Callable]] =
     elif isinstance(obj, Dict | Dictlike):
         return serialize_dict(obj, fn_serialize)
     else:
-        assert isinstance(obj, Primitives), \
-            f"[WARNING] Possible loss of information when serializing {obj} of type {type(obj)}"
+        assert isinstance(
+            obj, Primitives
+        ), f"[WARNING] Possible loss of information when serializing {obj} of type {type(obj)}"
         return obj
 
 
-def serialize_list(input_list: List | Listlike, fn_serialize: Optional[Dict[type, Callable]] = None) -> List | Tuple:
+def serialize_list(
+    input_list: List | Listlike, fn_serialize: Optional[Dict[type, Callable]] = None
+) -> List | Tuple:
     """Recursively serialize the elements of a list by calling fn_serialize when applicable.
 
     Args:
@@ -114,7 +135,11 @@ def serialize_list(input_list: List | Listlike, fn_serialize: Optional[Dict[type
     if isinstance(input_list, Listlike):
         input_type = input_list.__class__.__name__
         input_list = list(input_list)
-        return (_MAGIC_STR_SER_LIST, input_type, serialize_list(input_list, fn_serialize))
+        return (
+            _MAGIC_STR_SER_LIST,
+            input_type,
+            serialize_list(input_list, fn_serialize),
+        )
     else:
         assert isinstance(input_list, list), f"Cannot serialize type {type(input_list)}"
 
@@ -131,7 +156,9 @@ def _convert_to_dict(input_dict: Dictlike) -> Dict:
         return input_dict._asdict()
 
 
-def serialize_dict(input_dict: Dict | Dictlike, fn_serialize: Optional[Dict[type, Callable]] = None) -> Dict | Tuple:
+def serialize_dict(
+    input_dict: Dict | Dictlike, fn_serialize: Optional[Dict[type, Callable]] = None
+) -> Dict | Tuple:
     """Recursively serialize the fields of a dictionary by calling fn_serialize when applicable.
 
     Args:
@@ -149,7 +176,11 @@ def serialize_dict(input_dict: Dict | Dictlike, fn_serialize: Optional[Dict[type
         # Convert to a regular dict to allow mutation
         input_type = input_dict.__class__.__name__
         input_dict = _convert_to_dict(input_dict)
-        return (_MAGIC_STR_SER_DICT, input_type, serialize_dict(input_dict, fn_serialize))
+        return (
+            _MAGIC_STR_SER_DICT,
+            input_type,
+            serialize_dict(input_dict, fn_serialize),
+        )
     else:
         assert isinstance(input_dict, dict), f"Cannot serialize type {type(input_dict)}"
 
@@ -159,8 +190,12 @@ def serialize_dict(input_dict: Dict | Dictlike, fn_serialize: Optional[Dict[type
     return input_dict
 
 
-def _deserialize_object_from_tuple(tup: Tuple[str, str, List], fn_deserialize: Optional[Dict[str, Callable]] = None) -> Any:
-    assert tup[0] == _MAGIC_STR_SER_OBJ, f"Cannot deserialize non-serialized object {tup}"
+def _deserialize_object_from_tuple(
+    tup: Tuple[str, str, List], fn_deserialize: Optional[Dict[str, Callable]] = None
+) -> Any:
+    assert (
+        tup[0] == _MAGIC_STR_SER_OBJ
+    ), f"Cannot deserialize non-serialized object {tup}"
     assert tup[1] in fn_deserialize, f"Cannot deserialize type {tup[1]}"
     return fn_deserialize[tup[1]](tup[2])
 
@@ -176,7 +211,9 @@ def _get_type_from_string(type_str: str, typespec: UnionType | type) -> type:
     raise ValueError(f"Cannot get type from string {type_str} with typespec {typespec}")
 
 
-def deserialize_object(obj: object, fn_deserialize: Optional[Dict[str, Callable]] = None) -> Any:
+def deserialize_object(
+    obj: object, fn_deserialize: Optional[Dict[str, Callable]] = None
+) -> Any:
     """Recursively deserialize an object by calling fn_deserialize when applicable.
 
     Args:
@@ -202,19 +239,24 @@ def deserialize_object(obj: object, fn_deserialize: Optional[Dict[str, Callable]
                 return type_class(deserialize_dict(obj[2], fn_deserialize))
             return type_class(**deserialize_dict(obj[2], fn_deserialize))
         else:
-            raise ValueError(f"Cannot deserialize object {obj} with magic string {obj[0]}")
+            raise ValueError(
+                f"Cannot deserialize object {obj} with magic string {obj[0]}"
+            )
     elif isinstance(obj, List):
         return deserialize_list(obj, fn_deserialize)
     elif isinstance(obj, Dict):
         return deserialize_dict(obj, fn_deserialize)
     else:
-        assert isinstance(obj, Primitives), \
-            f"[WARNING] Possible loss of information when deserializing {obj} of type {type(obj)}"
+        assert isinstance(
+            obj, Primitives
+        ), f"[WARNING] Possible loss of information when deserializing {obj} of type {type(obj)}"
 
     return obj
 
 
-def deserialize_dict(input_dict: Dict, fn_deserialize: Optional[Dict[str, Callable]] = None) -> Dict:
+def deserialize_dict(
+    input_dict: Dict, fn_deserialize: Optional[Dict[str, Callable]] = None
+) -> Dict:
     """Recursively deserialize the fields of a dictionary by calling fn_deserialize when applicable.
 
     Args:
@@ -235,7 +277,9 @@ def deserialize_dict(input_dict: Dict, fn_deserialize: Optional[Dict[str, Callab
     return input_dict
 
 
-def deserialize_list(input_list: List, fn_deserialize: Optional[Dict[str, Callable]] = None) -> List:
+def deserialize_list(
+    input_list: List, fn_deserialize: Optional[Dict[str, Callable]] = None
+) -> List:
     """Recursively deserialize the elements of a list by calling fn_deserialize when applicable.
 
     Args:

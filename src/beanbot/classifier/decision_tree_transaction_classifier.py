@@ -2,33 +2,29 @@
 # -*- coding: utf-8 -*-
 
 from typing import Dict
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier
-from beancount.ingest.extract import print_extracted_entries
-from beancount.parser.printer import print_entries
-import numpy as np
 
-from beanbot.classifier.abstract_transaction_classifier import AbstractTransactionClassifier
+from beanbot.classifier.abstract_transaction_classifier import (
+    AbstractTransactionClassifier,
+)
 from beanbot.vectorizer.bag_of_words_vectorizer import BagOfWordVectorizer
 from beanbot.common.types import Transactions
-from beanbot.ops.extractor import TransactionDescriptionExtractor
 from beanbot.ops.filter import BalancedTransactionFilter
 
 
 class DecisionTreeTransactionClassifier(AbstractTransactionClassifier):
     """Perform transaction classification with decision tree"""
 
-    ADD_TAG = '_new_dt'
+    ADD_TAG = "_new_dt"
 
     def __init__(self, options_map: Dict):
-
         super().__init__(options_map, add_tags={self.ADD_TAG})
         # self._classifier = DecisionTreeClassifier()
         # self._classifier = KNeighborsClassifier(n_neighbors=1)
         # self._classifier = MLPClassifier(max_iter=1000, hidden_layer_sizes=(1000, 100), verbose=True)
-        self._classifier = RandomForestClassifier(n_estimators=200, max_depth=20, random_state=1, verbose=True)
+        self._classifier = RandomForestClassifier(
+            n_estimators=200, max_depth=20, random_state=1, verbose=True
+        )
         self._vectorizer = BagOfWordVectorizer()
         self._gt_label = None
 
@@ -36,7 +32,9 @@ class DecisionTreeTransactionClassifier(AbstractTransactionClassifier):
         """Train the classifier with labelled transactions"""
 
         # TODO: in preprocessing step, check duplicate transaction
-        transactions_train = BalancedTransactionFilter(self._options_map).filter(transactions)
+        transactions_train = BalancedTransactionFilter(self._options_map).filter(
+            transactions
+        )
 
         self._vectorizer.fit_dictionary(transactions)
         trans_train_vec = self._vectorizer.vectorize(transactions_train)
@@ -56,7 +54,6 @@ class DecisionTreeTransactionClassifier(AbstractTransactionClassifier):
         trans_vec = self._vectorizer.vectorize(transactions)
         pred_label = self._classifier.predict(trans_vec.vec)
         pred_accounts = self._vectorizer.devectorize_label(pred_label)
-
 
         transactions = self.add_postings_auto_balance(transactions, pred_accounts)
         return transactions

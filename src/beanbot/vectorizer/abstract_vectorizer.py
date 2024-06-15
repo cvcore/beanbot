@@ -3,13 +3,11 @@
 
 from abc import ABCMeta, abstractmethod
 from typing import Iterable
-from beanbot.common.types import Transactions, VectorizedTransactions, Postings
+from beanbot.common.types import Transactions, VectorizedTransactions
 from beancount.core.data import Account
 
-import numpy as np
 
 class AbstractVectorizer(metaclass=ABCMeta):
-
     @abstractmethod
     def __init__(self):
         pass

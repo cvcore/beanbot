@@ -3,14 +3,18 @@
 
 
 from copy import deepcopy
-from beancount.core import data, interpolate, number
-from beancount.core.inventory import Inventory
+from beancount.core import data, number
 from typing import Dict, List, Optional, Set, Union
 
 from beanbot.ops.conditions import is_balanced
 
 
-def add_postings_auto_balance(transactions: List[data.Transaction], accounts: List[Union[data.Account, None]], options_map: Dict, add_tags: Optional[Set[str]]=None) -> List[data.Transaction]:
+def add_postings_auto_balance(
+    transactions: List[data.Transaction],
+    accounts: List[Union[data.Account, None]],
+    options_map: Dict,
+    add_tags: Optional[Set[str]] = None,
+) -> List[data.Transaction]:
     """Detect unbalanced transaction from `transactions` and insert automatically postings from `accounts` to balance the transaction.
     Balanced transactions will be ignored."""
 

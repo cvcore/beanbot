@@ -4,13 +4,13 @@ from typing import List
 from parse import parse
 
 from beancount.core.data import Directive, Transaction, Amount, Posting, new_metadata
-from beancount.core.number import D, MISSING
+from beancount.core.number import D
 
 from .csv_importer import CSVImporter
 from datetime import datetime
 
-class Importer(CSVImporter):
 
+class Importer(CSVImporter):
     FIELD_TRANSACTION_ID = "alipay_transaction_id"
     FIELD_MERCHANT_ID = "alipay_merchant_id"
     FIELD_TRANSACTION_CREATION_TIME = "alipay_transaction_creation_time"
@@ -19,7 +19,9 @@ class Importer(CSVImporter):
     FIELD_TRANSACTION_NOTES = "alipay_transaction_notes"
     FIELD_AWAITS_RECONCILE = "alipay_awaits_reconcile"
 
-    def __init__(self, account: str, commission_account: str = "Expenses:Financial:Commissions"):
+    def __init__(
+        self, account: str, commission_account: str = "Expenses:Financial:Commissions"
+    ):
         super().__init__(
             account,
             encoding="GB2312",
@@ -32,7 +34,7 @@ class Importer(CSVImporter):
 
     def identify(self, file) -> Match[str] | None:
         print(file.name)
-        return re.match(f"^.*alipay/transactions/((?!archive).)*/.*\.csv$", file.name)
+        return re.match(r"^.*alipay/transactions/((?!archive).)*/.*\.csv$", file.name)
 
     def _parse_header(self, header_lines: List) -> List[Directive]:
         """
@@ -48,11 +50,17 @@ class Importer(CSVImporter):
         assert "终止日期:" in header_lines[2]
         assert "交易记录明细列表" in header_lines[3]
 
-        self._file_meta["alipay_account"] = header_lines[1].split(":")[1].strip().replace("[", "").replace("]", "")
-        txn_dates = parse("起始日期:[{start_date}]{}终止日期:[{end_date}]{}", header_lines[2])
-        assert txn_dates['start_date'] and txn_dates['end_date'], "Could not parse transaction dates"
-        self._file_meta["alipay_txn_start_date"] = txn_dates['start_date']
-        self._file_meta["alipay_txn_end_date"] = txn_dates['end_date']
+        self._file_meta["alipay_account"] = (
+            header_lines[1].split(":")[1].strip().replace("[", "").replace("]", "")
+        )
+        txn_dates = parse(
+            "起始日期:[{start_date}]{}终止日期:[{end_date}]{}", header_lines[2]
+        )
+        assert (
+            txn_dates["start_date"] and txn_dates["end_date"]
+        ), "Could not parse transaction dates"
+        self._file_meta["alipay_txn_start_date"] = txn_dates["start_date"]
+        self._file_meta["alipay_txn_end_date"] = txn_dates["end_date"]
 
         return []
 
@@ -79,8 +87,8 @@ class Importer(CSVImporter):
         txn_id = row["交易号"]
         txn_merchant_id = row["商家订单号"]
         txn_creation_time = datetime.strptime(row["交易创建时间"], "%Y-%m-%d %H:%M:%S")
-        txn_source = row["交易来源地"]
-        txn_type = row["类型"]
+        # txn_source = row["交易来源地"]
+        # txn_type = row["类型"]
         txn_payee = row["交易对方"]
         txn_narration = row["商品名称"]
         txn_amount = row["金额（元）"]
@@ -110,7 +118,9 @@ class Importer(CSVImporter):
             txn_postings.append(
                 Posting(
                     account=self._account,
-                    units=Amount(-account_amount - commission_amount, "CNY"),  # alipay only reports the net amount in the amount column, so we need to add the commission to get the gross amount
+                    units=Amount(
+                        -account_amount - commission_amount, "CNY"
+                    ),  # alipay only reports the net amount in the amount column, so we need to add the commission to get the gross amount
                     cost=None,
                     price=None,
                     flag=None,
@@ -119,15 +129,28 @@ class Importer(CSVImporter):
             )
             if commission_amount > 0:
                 txn_postings.append(
-                    Posting(account=self._commission_account, units=Amount(commission_amount, "CNY"), cost=None, price=None, flag=None, meta=None)
+                    Posting(
+                        account=self._commission_account,
+                        units=Amount(commission_amount, "CNY"),
+                        cost=None,
+                        price=None,
+                        flag=None,
+                        meta=None,
+                    )
                 )
             if refund_amount > 0:
-                txn_meta[self.FIELD_AWAITS_RECONCILE] = "True"  # we split the refund into a separate transaction, so we can reconcile it later more
-                                                                # easily by matching the date and the amount.
+                txn_meta[self.FIELD_AWAITS_RECONCILE] = (
+                    "True"  # we split the refund into a separate transaction, so we can reconcile it later more
+                )
+                # easily by matching the date and the amount.
 
         elif txn_direction == "收入":
-            assert txn_status == "交易成功", f"Incoming transaction {txn_id} is not successful"
-            assert txn_fund_status == "已收入", f"Incoming transaction {txn_id} is not marked as received"
+            assert (
+                txn_status == "交易成功"
+            ), f"Incoming transaction {txn_id} is not successful"
+            assert (
+                txn_fund_status == "已收入"
+            ), f"Incoming transaction {txn_id} is not marked as received"
             txn_postings.append(
                 Posting(
                     account=self._account,
@@ -140,10 +163,19 @@ class Importer(CSVImporter):
             )
             if commission_amount > 0:
                 txn_postings.append(
-                    Posting(account=self._commission_account, units=Amount(commission_amount, "CNY"), cost=None, price=None, flag=None, meta=None)
+                    Posting(
+                        account=self._commission_account,
+                        units=Amount(commission_amount, "CNY"),
+                        cost=None,
+                        price=None,
+                        flag=None,
+                        meta=None,
+                    )
                 )
             if refund_amount > 0:
-                raise NotImplementedError("Refunds for incoming transactions are not yet supported")
+                raise NotImplementedError(
+                    "Refunds for incoming transactions are not yet supported"
+                )
 
         elif txn_direction == "不计收支":
             if txn_fund_status == "资金转移":
@@ -159,7 +191,14 @@ class Importer(CSVImporter):
                 )
                 if commission_amount > 0:
                     txn_postings.append(
-                        Posting(account=self._commission_account, units=Amount(commission_amount, "CNY"), cost=None, price=None, flag=None, meta=None)
+                        Posting(
+                            account=self._commission_account,
+                            units=Amount(commission_amount, "CNY"),
+                            cost=None,
+                            price=None,
+                            flag=None,
+                            meta=None,
+                        )
                     )
                 txn_postings.append(
                     Posting(
@@ -172,9 +211,15 @@ class Importer(CSVImporter):
                     )
                 )
             elif txn_fund_status == "已收入":
-                assert commission_amount == 0, f"Commission for refund transaction {txn_id} is not zero"
-                assert account_amount > 0, f"Amount for refund transaction {txn_id} is not positive"
-                assert refund_amount == 0, f"Refund amount for transaction {txn_id} is not zero"
+                assert (
+                    commission_amount == 0
+                ), f"Commission for refund transaction {txn_id} is not zero"
+                assert (
+                    account_amount > 0
+                ), f"Amount for refund transaction {txn_id} is not positive"
+                assert (
+                    refund_amount == 0
+                ), f"Refund amount for transaction {txn_id} is not zero"
 
                 txn_postings.append(
                     Posting(
@@ -186,7 +231,9 @@ class Importer(CSVImporter):
                         meta=None,
                     )
                 )
-                txn_meta[self.FIELD_AWAITS_RECONCILE] = "True"  # we split the refund into a separate transaction, so we can reconcile it later more
+                txn_meta[self.FIELD_AWAITS_RECONCILE] = (
+                    "True"  # we split the refund into a separate transaction, so we can reconcile it later more
+                )
             elif txn_fund_status == "":
                 return []
             else:

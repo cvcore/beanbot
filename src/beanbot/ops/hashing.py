@@ -4,15 +4,15 @@
 from typing import Any, Dict, Iterable, Union
 import numpy as np
 
+
 class BiDirectionalHash(object):
     """Bi-directional hashing"""
 
     def __init__(self):
-        self._dict : Dict[Any, int] = dict()
-        self._inv_dict : Dict[int, Any] = dict()
+        self._dict: Dict[Any, int] = dict()
+        self._inv_dict: Dict[int, Any] = dict()
 
     def hash(self, obj: Union[Any, Iterable[Any]]) -> Union[int, np.ndarray]:
-
         if isinstance(obj, Iterable):
             return np.array([self._hash_impl(o) for o in obj])
         return self._hash_impl(obj)
@@ -29,7 +29,7 @@ class BiDirectionalHash(object):
         INVALID_HASH_VAL = 0
 
         if isinstance(obj, str):
-            if obj == '':
+            if obj == "":
                 return INVALID_HASH_VAL
             objstr = obj
         elif obj is None:
@@ -46,7 +46,6 @@ class BiDirectionalHash(object):
         return self._dict[objstr]
 
     def dehash(self, hash_val: Union[int, Iterable[int]]) -> Union[Any, Iterable[Any]]:
-
         if isinstance(hash_val, Iterable):
             return list(map(self._dehash_impl, hash_val))
         return self._dehash_impl(hash_val)

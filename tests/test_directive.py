@@ -4,7 +4,6 @@ from beancount.loader import load_file
 from beancount.core.data import Entries
 
 from beanbot.data import directive
-from beanbot.data.entries import MutableEntriesContainer
 
 
 @pytest.fixture
@@ -27,7 +26,7 @@ def test_make_mutable(bc_entries):
                 setattr(ent, attr, "test")
             except AttributeError:
                 captured = True
-            assert captured, f"Original entry should not be mutable!"
+            assert captured, "Original entry should not be mutable!"
         print(ent)
         print(ent_mutable)
 
@@ -45,7 +44,7 @@ def test_make_immutable(bc_entries):
                 setattr(ent_immutable, attr, "test")
             except AttributeError:
                 captured = True
-            assert captured, f"entry should be immutable!"
+            assert captured, "entry should be immutable!"
         print(ent)
         print(ent_immutable)
 
@@ -54,4 +53,6 @@ def test_equity(bc_entries):
     for ent in bc_entries:
         ent_mutable = directive.make_mutable(ent)
         ent_immutable = ent_mutable.to_immutable()
-        assert ent == ent_immutable, f"entry {ent_immutable} is not identical to the original one {ent}!"
+        assert (
+            ent == ent_immutable
+        ), f"entry {ent_immutable} is not identical to the original one {ent}!"

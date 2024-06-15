@@ -4,16 +4,13 @@
 from abc import ABCMeta, abstractmethod
 from typing import Dict, List, Optional, Union
 
-from pandas import options
 from beancount.core import data
 from beanbot.common.types import Transactions
-from beanbot.vectorizer.abstract_vectorizer import AbstractVectorizer
 from beanbot.ops.booking import add_postings_auto_balance
 
 
 class AbstractTransactionClassifier(metaclass=ABCMeta):
-
-    def __init__(self, options_map: Dict, add_tags: Optional[str]=None):
+    def __init__(self, options_map: Dict, add_tags: Optional[str] = None):
         self._options_map = options_map
         self._add_tags = add_tags
 
@@ -31,9 +28,15 @@ class AbstractTransactionClassifier(metaclass=ABCMeta):
         self.train(transactions)
         return self.predict(transactions)
 
-    def add_postings_auto_balance(self, transactions: List[data.Transaction], accounts: List[Union[data.Account, None]]) -> List[data.Transaction]:
+    def add_postings_auto_balance(
+        self,
+        transactions: List[data.Transaction],
+        accounts: List[Union[data.Account, None]],
+    ) -> List[data.Transaction]:
         """Detect unbalanced transaction from `transactions` and insert automatically postings from `account` to balance the transaction.
         Balanced transactions will be ignored."""
 
         # TODO: dirty interface
-        return add_postings_auto_balance(transactions, accounts, self._options_map, self._add_tags)
+        return add_postings_auto_balance(
+            transactions, accounts, self._options_map, self._add_tags
+        )

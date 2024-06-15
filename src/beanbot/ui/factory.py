@@ -1,8 +1,6 @@
 import datetime
 import logging
-from typing import Dict, List, OrderedDict
-import streamlit as st
-from beancount.core.data import Posting
+from typing import List
 from beanbot.common.configs import BeanbotConfig
 import re
 
@@ -26,7 +24,9 @@ def _setter_fn_new_prediction(old_tags: set, col_change: bool) -> set:
     return frozenset(tags)
 
 
-def _setter_fn_pred_account(old_postings: List[MutablePosting], col_change: str) -> List[MutablePosting]:
+def _setter_fn_pred_account(
+    old_postings: List[MutablePosting], col_change: str
+) -> List[MutablePosting]:
     """Set the new predicted account.
     Arguments:
         old_postings (List[MutablePosting]): the old postings
@@ -35,7 +35,7 @@ def _setter_fn_pred_account(old_postings: List[MutablePosting], col_change: str)
         new_postings (List[MutablePosting]): the new postings for the transaction"""
 
     # dirty: refactor this part
-    regex_category_account = BeanbotConfig.get_global()['regex-category-account']
+    regex_category_account = BeanbotConfig.get_global()["regex-category-account"]
     regexp = re.compile(regex_category_account)
 
     for posting in old_postings:
@@ -44,7 +44,9 @@ def _setter_fn_pred_account(old_postings: List[MutablePosting], col_change: str)
             posting.account = col_change
             return old_postings  # return by reference
 
-    raise ValueError(f"Could not find a category account in the postings: {old_postings}")
+    raise ValueError(
+        f"Could not find a category account in the postings: {old_postings}"
+    )
 
 
 class BeanbotDataEditorFactory:
@@ -57,24 +59,58 @@ class BeanbotDataEditorFactory:
         ext_cat_account = extractor.DirectiveCategoryAccountExtractor()
         ext_cat_amount = extractor.DirectiveCategoryAmountExtractor()
 
-        self._bb_entries.attach_extractors({
-            "new_predictions": ext_new_predictions,
-            "descriptions": ext_descriptions,
-            "source_account": ext_source_account,
-            "category_account": ext_cat_account,
-            "category_amount": ext_cat_amount,
-        })
+        self._bb_entries.attach_extractors(
+            {
+                "new_predictions": ext_new_predictions,
+                "descriptions": ext_descriptions,
+                "source_account": ext_source_account,
+                "category_account": ext_cat_account,
+                "category_amount": ext_cat_amount,
+            }
+        )
 
         self._adapter = StreamlitDataEditorAdapter(
             self._bb_entries,
             [
-                ColumnConfig("date", "Date", datetime.date, "The date of the transaction."),
-                ColumnConfig("category_account", "Category", OpenedAccount, "The transaction category.", linked_entry_field="postings", editable=True, entry_setter_fn=_setter_fn_pred_account),
-                ColumnConfig("category_amount", "Amount", float, "The transaction amount."),
+                ColumnConfig(
+                    "date", "Date", datetime.date, "The date of the transaction."
+                ),
+                ColumnConfig(
+                    "category_account",
+                    "Category",
+                    OpenedAccount,
+                    "The transaction category.",
+                    linked_entry_field="postings",
+                    editable=True,
+                    entry_setter_fn=_setter_fn_pred_account,
+                ),
+                ColumnConfig(
+                    "category_amount", "Amount", float, "The transaction amount."
+                ),
                 ColumnConfig("payee", "Payee", str, "The transaction payee"),
-                ColumnConfig("narration", "Narration", str, "The transaction narration."),
-                ColumnConfig("new_predictions", "New Prediction", bool, "Is the transaction category newly predicted?", linked_entry_field="tags", editable=True, entry_setter_fn=_setter_fn_new_prediction),
-                ColumnConfig("source_account", "Booked On", str, "Which account is the tranaction booked on?"),
-                ColumnConfig("entry_id", "Entry ID", str, "The unique identifier of the transaction used for editing."),
-            ]
+                ColumnConfig(
+                    "narration", "Narration", str, "The transaction narration."
+                ),
+                ColumnConfig(
+                    "new_predictions",
+                    "New Prediction",
+                    bool,
+                    "Is the transaction category newly predicted?",
+                    linked_entry_field="tags",
+                    editable=True,
+                    entry_setter_fn=_setter_fn_new_prediction,
+                ),
+                ColumnConfig(
+                    "source_account",
+                    "Booked On",
+                    str,
+                    "Which account is the tranaction booked on?",
+                ),
+                ColumnConfig(
+                    "entry_id",
+                    "Entry ID",
+                    str,
+                    "The unique identifier of the transaction used for editing.",
+                ),
+            ],
         )

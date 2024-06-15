@@ -2,14 +2,18 @@ from __future__ import annotations
 
 from collections import defaultdict
 import os
-from typing import Callable, Dict, List, Optional, Set, Tuple
+from typing import Callable, Dict, List, Optional, Set
 import uuid
 from beancount.core.data import Entries
 from beancount.loader import load_file
 from pandas import DataFrame
 
-from beanbot.data.directive import MutableDirective, MutableEntries, MutableOpen, make_mutable
-from beancount.core.data import Directive
+from beanbot.data.directive import (
+    MutableDirective,
+    MutableEntries,
+    MutableOpen,
+    make_mutable,
+)
 from beancount.parser.printer import EntryPrinter
 
 from beanbot.file.text_editor import ChangeSet, ChangeType, TextEditor
@@ -41,21 +45,26 @@ class MutableEntriesContainer:
                 metadata from the entries.
         """
 
-        assert all([isinstance(entry, MutableDirective) for entry in entries]), "All entries should be mutable directives."
+        assert all(
+            [isinstance(entry, MutableDirective) for entry in entries]
+        ), "All entries should be mutable directives."
 
         self._entries = entries
         self._errors = errors
         self._options_map = options_map
 
         if metadata is not None:
-            assert len(metadata) == len(entries), "The length of the metadata should be the same as the length of the entries."
+            assert (
+                len(metadata) == len(entries)
+            ), "The length of the metadata should be the same as the length of the entries."
             self._metadata = metadata
         else:  # create new metadata with entry ids
             self._metadata = [
                 {
-                    'entry_id': uuid.uuid4(),
+                    "entry_id": uuid.uuid4(),
                     self._BEANBOT_EDITED_FLAG: False,
-                } for _ in range(len(entries))
+                }
+                for _ in range(len(entries))
             ]
             self._extract_entry_lineno_range()
         if opened_accounts is not None:
@@ -63,7 +72,9 @@ class MutableEntriesContainer:
         else:
             self._opened_accounts = self._extract_opened_accounts()
 
-        self._id_to_idx = {self._metadata[idx]['entry_id']: idx for idx in range(len(entries))}
+        self._id_to_idx = {
+            self._metadata[idx]["entry_id"]: idx for idx in range(len(entries))
+        }
         self._attached_extractors = {} if extra_extractors is None else extra_extractors
         self._extract_metadata()
 
@@ -91,11 +102,11 @@ class MutableEntriesContainer:
         eprinter = EntryPrinter()
         for entry, metadata in zip(self._entries, self._metadata):
             if metadata[self._BEANBOT_EDITED_FLAG]:
-                filename = os.path.realpath(entry.meta['filename'])
-                lineno_range = metadata['lineno_range']
+                filename = os.path.realpath(entry.meta["filename"])
+                lineno_range = metadata["lineno_range"]
                 entry_string = eprinter(entry.to_immutable())
                 if add_newline:
-                    entry_string += '\n'
+                    entry_string += "\n"
                 file_changesets[filename].append(
                     ChangeSet(
                         type=ChangeType.REPLACE,
@@ -112,8 +123,8 @@ class MutableEntriesContainer:
         entries = self._entries
 
         for entry in entries:
-            filename = os.path.realpath(entry.meta['filename'])
-            lineno = entry.meta['lineno']
+            filename = os.path.realpath(entry.meta["filename"])
+            lineno = entry.meta["lineno"]
             file_linenos[filename].append(lineno)
 
         for filename in file_linenos:
@@ -126,10 +137,13 @@ class MutableEntriesContainer:
             next_linenos[filename][linenos[-1]] = 0
 
         for idx, entry in enumerate(entries):
-            filename = os.path.realpath(entry.meta['filename'])
-            lineno = entry.meta['lineno']
+            filename = os.path.realpath(entry.meta["filename"])
+            lineno = entry.meta["lineno"]
             # the linenos from beancount entries are 1-indexed
-            self._metadata[idx]['lineno_range'] = (lineno - 1, next_linenos[filename][lineno] - 1)
+            self._metadata[idx]["lineno_range"] = (
+                lineno - 1,
+                next_linenos[filename][lineno] - 1,
+            )
 
     # Getter methods
 
@@ -153,23 +167,42 @@ class MutableEntriesContainer:
     def get_immutable_entries(self) -> Entries:
         return [entry.to_immutable() for entry in self._entries]
 
-    def get_unique_values_for_key(self, key: str, entry_type: Optional[type] = None) -> Set:
+    def get_unique_values_for_key(
+        self, key: str, entry_type: Optional[type] = None
+    ) -> Set:
         return set(self.as_dataframe(entry_type, [key]).unique())
 
     def _extract_opened_accounts(self) -> Set[str]:
-        return set([entry.account for entry in self._entries if isinstance(entry, MutableOpen)])
+        return set(
+            [entry.account for entry in self._entries if isinstance(entry, MutableOpen)]
+        )
 
     def get_opened_accounts(self) -> Set[str]:
         return self._opened_accounts
 
     # Conversions
 
-    def as_dataframe(self, selected_entry_type: Optional[type] = None, selected_columns: Optional[List] = None) -> DataFrame:
+    def as_dataframe(
+        self,
+        selected_entry_type: Optional[type] = None,
+        selected_columns: Optional[List] = None,
+    ) -> DataFrame:
         """Convert the entries to a pandas dataframe."""
         if selected_entry_type is None:
-            df = DataFrame([self.get_entry_as_dict(idx, selected_columns) for idx in range(len(self._entries))])
+            df = DataFrame(
+                [
+                    self.get_entry_as_dict(idx, selected_columns)
+                    for idx in range(len(self._entries))
+                ]
+            )
         else:
-            df = DataFrame([self.get_entry_as_dict(idx, selected_columns) for idx in range(len(self._entries)) if isinstance(self._entries[idx], selected_entry_type)])
+            df = DataFrame(
+                [
+                    self.get_entry_as_dict(idx, selected_columns)
+                    for idx in range(len(self._entries))
+                    if isinstance(self._entries[idx], selected_entry_type)
+                ]
+            )
         if selected_columns is not None and len(df) > 0:
             df = df[selected_columns]  # keep the ordering of the columns
         return df
@@ -185,25 +218,29 @@ class MutableEntriesContainer:
         self._metadata[idx][self._BEANBOT_EDITED_FLAG] = True
         for key, value in zip(keys, values):
             value_type = type(getattr(directive, key))
-            assert value_type == type(value), f"Got unexpected value type {type(value)}, expected {value_type}"
+            assert value_type == type(
+                value
+            ), f"Got unexpected value type {type(value)}, expected {value_type}"
             setattr(directive, key, value)
         self._extract_metadata(idx)
 
     # Adding
 
     def add_entry(self, entry: MutableDirective) -> uuid.UUID:
-        assert isinstance(entry, MutableDirective), "The entry should be a mutable directive."
+        assert isinstance(
+            entry, MutableDirective
+        ), "The entry should be a mutable directive."
         self._entries.append(entry)
         idx = len(self._entries) - 1
-        self._metadata.append({'entry_id': uuid.uuid4()})
-        self._id_to_idx[self._metadata[-1]['entry_id']] = idx
+        self._metadata.append({"entry_id": uuid.uuid4()})
+        self._id_to_idx[self._metadata[-1]["entry_id"]] = idx
         self._extract_metadata(idx)
-        return self._metadata[idx]['entry_id']
+        return self._metadata[idx]["entry_id"]
 
     # Deleting
 
     def delete_entry_by_idx(self, idx: int):
-        del self._id_to_idx[self._metadata[idx]['entry_id']]
+        del self._id_to_idx[self._metadata[idx]["entry_id"]]
         self._metadata.pop(idx)
         self._entries.pop(idx)
 
@@ -213,17 +250,24 @@ class MutableEntriesContainer:
         self._attached_extractors.update(extractors)
         self._extract_metadata(use_extractors=extractors)
 
-    def _extract_metadata(self, idx: Optional[int] = None, remove_existing: bool = False, use_extractors: Optional[Dict] = None):
+    def _extract_metadata(
+        self,
+        idx: Optional[int] = None,
+        remove_existing: bool = False,
+        use_extractors: Optional[Dict] = None,
+    ):
         if idx is None:
             for idx in range(len(self._entries)):
                 self._extract_metadata(idx, remove_existing)
             return
 
         if remove_existing:
-            raise NotImplementedError("Removing existing metadata is not yet implemented.")
-            entry_id = self._metadata[idx]['entry_id'] # preserve the id
+            raise NotImplementedError(
+                "Removing existing metadata is not yet implemented."
+            )
+            entry_id = self._metadata[idx]["entry_id"]  # preserve the id
             self._metadata[idx].clear()
-            self._metadata[idx]['entry_id'] = entry_id
+            self._metadata[idx]["entry_id"] = entry_id
         if use_extractors is None:
             for key, extractor in self._attached_extractors.items():
                 self._metadata[idx][key] = extractor.extract_one(self._entries[idx])
@@ -233,18 +277,31 @@ class MutableEntriesContainer:
 
     # TODO: add sorting, insert at index, etc.
 
-    def create_container_from_indices(self, indices: List[int]) -> MutableEntriesContainer:
+    def create_container_from_indices(
+        self, indices: List[int]
+    ) -> MutableEntriesContainer:
         """Create a new view from a list of indices."""
 
         selected_entries = [self._entries[idx] for idx in indices]
         selected_metadata = [self._metadata[idx] for idx in indices]
-        return MutableEntriesContainer(selected_entries, self._errors, self._options_map, self._attached_extractors, selected_metadata, self._opened_accounts)
+        return MutableEntriesContainer(
+            selected_entries,
+            self._errors,
+            self._options_map,
+            self._attached_extractors,
+            selected_metadata,
+            self._opened_accounts,
+        )
 
     # Filtering rows
-    def filter_by_criterion(self, criterion: Callable[[MutableDirective], bool]) -> MutableEntriesContainer:
+    def filter_by_criterion(
+        self, criterion: Callable[[MutableDirective], bool]
+    ) -> MutableEntriesContainer:
         """Filter the entries according to a criterion."""
 
-        filtered_indices = [idx for idx in range(len(self._entries)) if criterion(self._entries[idx])]
+        filtered_indices = [
+            idx for idx in range(len(self._entries)) if criterion(self._entries[idx])
+        ]
         return self.create_container_from_indices(filtered_indices)
 
     def filter_by_index(self, indices: List[int]) -> MutableEntriesContainer:
