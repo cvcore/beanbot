@@ -1,22 +1,18 @@
 import tempfile
 from typing import List
-import unittest
 from pathlib import Path
 from beanbot.file.text_editor import TextEditor, ChangeSet, ChangeType
 import tempfile
 
-class TextEditorTestCase(unittest.TestCase):
-
-    def tearDown(self):
-        self.text_editor = None
+class TestTextEditor:
 
     def run_test_case(self, input_file: str, expect_file: str, changes: List[ChangeSet]):
-        self.text_editor = TextEditor(input_file)
-        self.text_editor.edit(changes)
+        text_editor = TextEditor(input_file)
+        text_editor.edit(changes)
 
         with tempfile.TemporaryDirectory() as temp_dir:
             save_path = str(Path(temp_dir) / "output.txt")
-            self.text_editor.save_changes(to_path=save_path)
+            text_editor.save_changes(to_path=save_path)
 
             with open(save_path, 'r', encoding='utf-8') as file:
                 modified_content = file.readlines()
@@ -26,7 +22,7 @@ class TextEditorTestCase(unittest.TestCase):
                 expected_content = file.readlines()
 
             # Assert that the modified content matches the expected content
-            self.assertEqual(modified_content, expected_content)
+            assert modified_content == expected_content
 
     def test_insertion(self):
         # Define the changes to be made
@@ -90,6 +86,3 @@ class TextEditorTestCase(unittest.TestCase):
         ]
 
         self.run_test_case(input_file, expect_file, changes)
-
-if __name__ == '__main__':
-    unittest.main()

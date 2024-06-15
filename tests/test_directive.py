@@ -1,13 +1,21 @@
 import pytest
 
+from beancount.loader import load_file
+from beancount.core.data import Entries
+
 from beanbot.data import directive
 from beanbot.data.entries import MutableEntriesContainer
 
 
-bc_entries = MutableEntriesContainer.load_from_file("/Users/core/Development/Finance/beanbot/tests/data/main.bean")
+@pytest.fixture
+def bc_entries() -> Entries:
+    BEANCOUNT_FILE = "tests/data/main.bean"
+    entries, errors, options = load_file(BEANCOUNT_FILE)
+    return entries
 
-def test_make_mutable():
-    for ent in bc_entries.entries:
+
+def test_make_mutable(bc_entries):
+    for ent in bc_entries:
         ent_mutable = directive.make_mutable(ent)
         # try to change something
         for attr in ent_mutable._asdict().keys():
@@ -24,8 +32,8 @@ def test_make_mutable():
         print(ent_mutable)
 
 
-def test_make_immutable():
-    for ent in bc_entries.entries:
+def test_make_immutable(bc_entries):
+    for ent in bc_entries:
         ent_mutable = directive.make_mutable(ent)
         ent_immutable = ent_mutable.to_immutable()
         # try to change something
@@ -42,8 +50,8 @@ def test_make_immutable():
         print(ent_immutable)
 
 
-def test_equity():
-    for ent in bc_entries.entries:
+def test_equity(bc_entries):
+    for ent in bc_entries:
         ent_mutable = directive.make_mutable(ent)
         ent_immutable = ent_mutable.to_immutable()
         assert ent == ent_immutable, f"entry {ent_immutable} is not identical to the original one {ent}!"
