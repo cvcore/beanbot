@@ -6,14 +6,9 @@ Please note: this project is currently under development.
 
 # Setup
 
-Clone this repository, setup the your python virtual environment and then:
+Poetry is used to manage the dependencies of this project. To install poetry, please refer to the [official documentation](https://python-poetry.org/docs/).
 
-```
-pip install -r requirements.txt
-pip install .
-```
 
-This will install `beanbot` as a python library and its necessary dependencies in your python path.
 
 # Usage
 
