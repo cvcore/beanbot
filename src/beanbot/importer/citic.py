@@ -81,22 +81,22 @@ class Importer(importer.ImporterProtocol):
                 ), "The data format has changed! Please consider updating ecitic.py importer!"
                 continue
 
-            trans_date = dateparser.parse(row_data[0]).date()
-            trans_narration = row_data[2]
-            trans_lastfour = row_data[3]
+            trans_date = dateparser.parse(row_data.iloc[0]).date()
+            trans_narration = row_data.iloc[2]
+            trans_lastfour = row_data.iloc[3]
             assert (
                 trans_lastfour == lastfour
             ), f"Found invalid last four digit {trans_lastfour}, expect {lastfour}. Please double check!"
-            trans_currency = get_currency(row_data[4])
-            settle_currency = get_currency(row_data[5])
+            trans_currency = get_currency(row_data.iloc[4])
+            settle_currency = get_currency(row_data.iloc[5])
             assert (
                 settle_currency == "CNY"
             ), f"Invalid settlement currency {settle_currency} for account {self.account} card {lastfour}"
             trans_amount = Amount(
-                -D(row_data[7]), settle_currency
+                -D(row_data.iloc[7]), settle_currency
             )  # CITIC uses + for payments and - for income.
             if settle_currency != trans_currency:
-                rate = Amount(D(row_data[6]) / D(row_data[7]), trans_currency)
+                rate = Amount(D(row_data.iloc[6]) / D(row_data.iloc[7]), trans_currency)
             else:
                 rate = None
 
