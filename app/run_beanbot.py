@@ -13,7 +13,11 @@ from beanbot.data.adapter import ColumnConfig
 
 from beanbot.ops import extractor
 from beanbot.ops.conditions import is_predicted
-from beanbot.ui.factory import _setter_fn_new_prediction, _setter_fn_pred_account
+from beanbot.ui.factory import (
+    _setter_fn_new_prediction,
+    _setter_fn_pred_account,
+    _setter_fn_tags,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,7 +32,9 @@ def get_entries_container(file: str) -> MutableEntriesContainer:
     print(f"Loading entries from {file}")
     global_config = BeanbotConfig.get_global()
     global_config.parse_file(file)
-    entries_container = MutableEntriesContainer.load_from_file(file)
+    entries_container = MutableEntriesContainer.load_from_file(
+        file, no_interpolation=True
+    )
     return entries_container
 
 
@@ -48,8 +54,9 @@ def get_adapter(
     ext_new_predictions = extractor.DirectiveNewPredictionsExtractor()
     ext_descriptions = extractor.DirectiveDescriptionExtractor()
     ext_source_account = extractor.DirectiveRecordSourceAccountExtractor()
-    ext_cat_account = extractor.DirectiveCategoryAccountExtractor()
-    ext_cat_amount = extractor.DirectiveCategoryAmountExtractor()
+    ext_cat_account = extractor.DirectiveCounterAccountExtractor()
+    ext_cat_amount = extractor.DirectiveRecordSourceAmountExtractor()
+    ext_cat_tags = extractor.DirectiveTagsExtractor()
 
     _entries.attach_extractors(
         {
@@ -58,6 +65,7 @@ def get_adapter(
             "source_account": ext_source_account,
             "category_account": ext_cat_account,
             "category_amount": ext_cat_amount,
+            "tags": ext_cat_tags,
         }
     )
 
@@ -91,6 +99,14 @@ def get_adapter(
                 "Booked On",
                 str,
                 "Which account is the tranaction booked on?",
+            ),
+            ColumnConfig(
+                "tags",
+                "Tags",
+                str,
+                "The transaction tags.",
+                editable=True,
+                entry_setter_fn=_setter_fn_tags,
             ),
         ],
     )
