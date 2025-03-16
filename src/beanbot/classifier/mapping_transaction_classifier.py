@@ -13,6 +13,7 @@ from beanbot.ops.extractor import (
 )
 from beanbot.ops.filter import BalancedTransactionFilter
 from beancount.core import interpolate
+from beanbot.helper import logger
 
 
 class MappingTransactionClassifier(AbstractTransactionClassifier):
@@ -46,7 +47,7 @@ class MappingTransactionClassifier(AbstractTransactionClassifier):
             if desc in self._desc_to_cat:
                 if cat != self._desc_to_cat[desc]:
                     # debug
-                    print(
+                    logger.debug(
                         f"Dropping ambiguous case: Desc: {desc} Cat: {cat} PrevCat: {self._desc_to_cat[desc]}"
                     )
 
