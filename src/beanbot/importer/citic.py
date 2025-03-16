@@ -17,6 +17,7 @@ def get_currency(currency):
         "日元": "JPY",
         "英镑": "GBP",
         "瑞士法郎": "CHF",
+        "埃及镑": "EGP",
     }
 
     assert (
@@ -26,21 +27,24 @@ def get_currency(currency):
 
 
 class Importer(importer.ImporterProtocol):
-    def __init__(self, account, lastfour):
+    def __init__(self, account, card_type: str, lastfour: str | list[str]):
         self.account = account
+        self.card_type = card_type
+        if isinstance(lastfour, str):
+            lastfour = [lastfour]
         self.lastfour = lastfour
 
     def identify(self, file):
         """
         assert raw transaction records are stored as:
-        .../citic/transactions/[last_four]/YYYYMM.xls
+        .../citic/transactions/[card_type]/YYYYMM.xls
         processed raw transactions are stored under:
-        .../citic/transactions/archive/[last_four]/YYYYMM.xls
+        .../citic/transactions/archive/[card_type]/YYYYMM.xls
         """
         # return re.match('.*\.xls', os.path.basename(f.name))
         # return re.match(f"^.*citic/transactions/((?!archive).)*/.*\.xls$", file.name)
         return re.match(
-            r"^.*citic/transactions/" + self.lastfour + r"/.*\.xls$", file.name
+            r"^.*citic/transactions/" + self.card_type + r"/.*\.xls$", file.name
         )
 
     def extract(self, file, existing_entries=None):
@@ -60,8 +64,10 @@ class Importer(importer.ImporterProtocol):
             dataframe = pandas.read_excel(
                 io=file.name, sheet_name="本期账单明细(人民币)"
             )
-        lastfour = file.name.rsplit("/")[-2]
-        assert lastfour == self.lastfour
+        card_type = file.name.rsplit("/")[-2]
+        assert (
+            card_type == self.card_type
+        ), f"Expect card type {self.card_type}, got {card_type}"
 
         for index, row_data in dataframe.iterrows():
             # check the table heads as verification
@@ -85,13 +91,13 @@ class Importer(importer.ImporterProtocol):
             trans_narration = row_data.iloc[2]
             trans_lastfour = row_data.iloc[3]
             assert (
-                trans_lastfour == lastfour
-            ), f"Found invalid last four digit {trans_lastfour}, expect {lastfour}. Please double check!"
+                trans_lastfour in self.lastfour
+            ), f"Found invalid last four digit {trans_lastfour}, expect to be one of {self.lastfour}. Please double check!"
             trans_currency = get_currency(row_data.iloc[4])
             settle_currency = get_currency(row_data.iloc[5])
             assert (
                 settle_currency == "CNY"
-            ), f"Invalid settlement currency {settle_currency} for account {self.account} card {lastfour}"
+            ), f"Invalid settlement currency {settle_currency} for account {self.account} card {trans_lastfour}"
             trans_amount = Amount(
                 -D(row_data.iloc[7]), settle_currency
             )  # CITIC uses + for payments and - for income.
@@ -100,7 +106,22 @@ class Importer(importer.ImporterProtocol):
             else:
                 rate = None
 
-            meta = data.new_metadata(file.name, index)
+            if row_data.iloc[1].isdigit():
+                meta = data.new_metadata(
+                    file.name,
+                    index,
+                    {
+                        "booked_on": dateparser.parse(
+                            row_data.iloc[1], date_formats=[r"%Y%m%d"]
+                        ).date()
+                    },
+                )
+            else:
+                meta = data.new_metadata(
+                    file.name,
+                    index,
+                    {"booked_on": dateparser.parse(row_data.iloc[1]).date()},
+                )
 
             txn = data.Transaction(
                 meta=meta,
