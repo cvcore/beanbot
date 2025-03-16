@@ -16,3 +16,4 @@ smart_importer
 titlecase
 xlrd
 yapf
+recordclass
