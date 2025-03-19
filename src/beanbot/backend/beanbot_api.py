@@ -300,6 +300,7 @@ async def get_currencies(container: TransactionsContainer = Depends(get_containe
                 if posting.price and posting.price.currency:
                     currencies.add(posting.price.currency)
 
+        currencies.discard(None)
         return sorted(list(currencies))
     except Exception as e:
         logger.error(f"Error retrieving currencies: {e}", exc_info=True)
