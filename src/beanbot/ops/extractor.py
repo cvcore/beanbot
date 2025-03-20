@@ -2,28 +2,28 @@
 
 from __future__ import annotations
 from datetime import date
-import logging
 import numpy as np
 from beancount.core.data import Transaction, Directive, Entries
 from beancount.core import data
 from beanbot.data import directive
+from beanbot.helper import logger
 import regex as re
 from beanbot.common.configs import BeanbotConfig
 from beanbot.common.types import Postings
-from typing import List
+from typing import Any, List
 
 
 class BaseExtractor(object):
     """Abstract Extractor class, extract a list of string descriptions from a list of Transactions"""
 
-    def extract_one(self, entry: Directive):
+    def extract_one(self, entry: Directive) -> Any:
         self._type_check(entry)
         return self._extract_one_impl(entry)
 
     def extract(self, entries: Entries) -> List:
         return [self.extract_one(e) for e in entries]
 
-    def _extract_one_impl(self, entry: Directive):
+    def _extract_one_impl(self, entry: Directive) -> Any:
         return NotImplementedError("You need to implement this method in the subclass.")
 
     def _type_check(self, entry: Directive) -> None:
@@ -111,7 +111,7 @@ class _TransactionAccountExtractor(_TransactionRegExpExtractor):
         valid_accounts = [p.account for p in postings if self.match(p.account)]
 
         if len(valid_accounts) > 1:
-            logging.warning(f"Multiple valid accounts found: {valid_accounts}")
+            logger.debug(f"Multiple valid accounts found: {valid_accounts}")
             return valid_accounts[0]
         elif len(valid_accounts) == 1:
             return valid_accounts[0]
@@ -127,6 +127,17 @@ class TransactionCategoryAccountExtractor(_TransactionAccountExtractor):
     def __init__(self):
         regex_category_account = BeanbotConfig.get_global()["regex-category-account"]
         super().__init__(regex_category_account)
+
+
+class TransactionCounterAccountExtractor(BaseExtractor):
+    """Counter accounts are the ones that are not in the first position of the postings."""
+
+    def _extract_one_impl(self, entry: Directive) -> str:
+        if len(entry.postings) < 2:
+            return ""
+        elif len(entry.postings) > 2:
+            return ", ".join([p.account for p in entry.postings[1:]])
+        return entry.postings[1].account
 
 
 class TransactionRecordSourceAccountExtractor(_TransactionAccountExtractor):
@@ -151,12 +162,14 @@ class _TransactionAmountExtractor(_TransactionRegExpExtractor):
     _EXTRACT_SIGN = False
 
     def _posting_amount_keep_one(self, postings: Postings) -> float:
-        for p in postings:
-            if self.match(p.account):
-                if self._EXTRACT_SIGN:
-                    return np.sign(p.units.number)
-                return p.units.number
-        return 0.0
+        try:
+            for p in postings:
+                if self.match(p.account):
+                    if self._EXTRACT_SIGN:
+                        return np.sign(p.units.number)
+                    return p.units.number
+        except:  # noqa
+            return 0.0
 
     def _extract_one_impl(self, entry: Transaction) -> float:
         return self._posting_amount_keep_one(entry.postings)
@@ -190,6 +203,17 @@ class TransactionRecordSourceAmountExtractor(_TransactionAmountExtractor):
         super().__init__(regex_record_source_account)
 
 
+class TransactionCounterAmountExtractor(BaseExtractor):
+    def _extract_one_impl(self, entry: Directive) -> float:
+        if not isinstance(entry, Transaction | directive.MutableTransaction):
+            return 0.0
+        elif len(entry.postings) < 2:
+            return 0.0
+        elif len(entry.postings) > 2:
+            return sum([p.units.number for p in entry.postings[1:]])
+        return entry.postings[1].units.number
+
+
 class TransactionSourceFilenameExtractor(BaseExtractor):
     """Abstract Extractor class, extract a list of string descriptions from a list of Transactions"""
 
@@ -212,6 +236,11 @@ class TransactionNewPredictionsExtractor(BaseExtractor):
             if tag.startswith("_new"):
                 return True
         return False
+
+
+class TransactionTagsExtractor(BaseExtractor):
+    def _extract_one_impl(self, entry: Transaction) -> str:
+        return ", ".join(entry.tags)
 
 
 ################# Extractor for Balances #################
@@ -252,7 +281,8 @@ class OpenCategoryAccountExtractor(BaseExtractor):
 class BaseDirectiveExtractor(BaseExtractor):
     """Abstract Extractor class, extract a list of string descriptions from a list of Transactions.
     This class with automatically call the extractor based on the type of the entry.
-    The user should not instantiate this class directly, but use the subclasses instead."""
+    The user should not instantiate this class directly, but use the subclasses instead.
+    """
 
     def __init__(self):
         self._extractor_cache = {}
@@ -310,4 +340,20 @@ class DirectiveCategoryAccountExtractor(BaseDirectiveExtractor):
 
 
 class DirectiveCategoryAmountExtractor(BaseDirectiveExtractor):
+    pass
+
+
+class DirectiveCounterAccountExtractor(BaseDirectiveExtractor):
+    pass
+
+
+class DirectiveCounterAmountExtractor(BaseDirectiveExtractor):
+    pass
+
+
+class DirectiveTagsExtractor(BaseDirectiveExtractor):
+    pass
+
+
+class DirectiveRecordSourceAmountExtractor(BaseDirectiveExtractor):
     pass

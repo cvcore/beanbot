@@ -18,9 +18,11 @@ def _from_immutable(cls: type, obj: bd.Directive) -> "MutableDirective":
             fields_dict[key] = _from_immutable(type(value), value)
         elif isinstance(value, list):
             value = [
-                v
-                if type(v) not in _MAP_TO_MUTABLE_DIRECTIVE
-                else _from_immutable(type(v), v)
+                (
+                    v
+                    if type(v) not in _MAP_TO_MUTABLE_DIRECTIVE
+                    else _from_immutable(type(v), v)
+                )
                 for v in value
             ]
             fields_dict[key] = value

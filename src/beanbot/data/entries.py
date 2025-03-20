@@ -5,7 +5,7 @@ import os
 from typing import Callable, Dict, List, Optional, Set
 import uuid
 from beancount.core.data import Entries
-from beancount.loader import load_file
+from beancount.loader import load_file, _parse_recursive
 from pandas import DataFrame
 
 from beanbot.data.directive import (
@@ -81,9 +81,14 @@ class MutableEntriesContainer:
     # File I/O
 
     @classmethod
-    def load_from_file(cls, path: str) -> MutableEntriesContainer:
+    def load_from_file(
+        cls, path: str, no_interpolation: bool = False
+    ) -> MutableEntriesContainer:
         """Load imported entries from a path."""
-        entries, errors, options_map = load_file(path)
+        if no_interpolation:
+            entries, errors, options_map = _parse_recursive([(path, True)], None)
+        else:
+            entries, errors, options_map = load_file(path)
         entries = [make_mutable(entry) for entry in entries]
         return MutableEntriesContainer(entries, errors, options_map)
 

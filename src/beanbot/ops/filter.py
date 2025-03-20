@@ -3,10 +3,12 @@
 # Filtering the transactions
 
 from typing import Optional
-from beancount.core import data
-from beanbot.common.types import Transactions
+from beancount.core.data import Transaction, Entries, Directive
 
+from beanbot.common.types import Transactions
+from beanbot.data.directive import MutableTransaction, MutableEntries, MutableDirective
 from beanbot.ops.conditions import is_balanced, is_internal_transfer, is_predicted
+from beanbot.ops.extractor import TransactionRecordSourceAccountExtractor
 
 
 class BaseFilter:
@@ -23,31 +25,33 @@ class BaseFilter:
     def __init__(self) -> None:
         self._inverse_condition = False
 
-    def filter(self, entries: data.Entries) -> data.Entries:
+    def filter(self, entries: Entries | MutableEntries) -> Entries | MutableEntries:
         if self.__class__ == BaseFilter:
             return entries
         if hasattr(super(), "filter"):
             entries = super().filter()
         return self._filter_impl(entries)
 
-    def _filter_impl(self, entries: data.Entries) -> data.Entries:
+    def _filter_impl(
+        self, entries: Entries | MutableEntries
+    ) -> Entries | MutableEntries:
         return [entry for entry in entries if self._test_condition(entry)]
 
-    def _test_condition(self, entry: data.Directive) -> bool:
+    def _test_condition(self, entry: Directive | MutableDirective) -> bool:
         condition = self._cond_impl(entry)
         if self._inverse_condition:
             condition = not condition
         return condition
 
-    def _cond_impl(self, entry: data.Directive) -> bool:
+    def _cond_impl(self, entry: Directive | MutableDirective) -> bool:
         return True
 
 
 class TransactionFilter(BaseFilter):
     """Filter that only passes transactions"""
 
-    def _cond_impl(self, entry: data.Directive) -> bool:
-        return isinstance(entry, data.Transaction)
+    def _cond_impl(self, entry: Directive | MutableDirective) -> bool:
+        return isinstance(entry, Transaction | MutableTransaction)
 
 
 class NotTransactionFilter(TransactionFilter):
@@ -63,7 +67,7 @@ class BalancedTransactionFilter(TransactionFilter):
         super().__init__()
         self._options_map = options_map
 
-    def _cond_impl(self, entry: data.Directive) -> bool:
+    def _cond_impl(self, entry: Directive | MutableDirective) -> bool:
         return is_balanced(entry, self._options_map)
 
 
@@ -83,7 +87,7 @@ class UnbalancedTransactionFilter(BalancedTransactionFilter):
         #         super().__init__()
         #         self._extractor = extractor
 
-        #     def filter(self, transactions: List[data.Transaction]) -> List[data.Transaction]:
+        #     def filter(self, transactions: List[Transaction | MutableTransaction]) -> List[Transaction | MutableTransaction]:
 
         #         descriptions = self._extractor.extract(transactions)
         #         desc_to_idx = {}
@@ -106,7 +110,7 @@ class UnbalancedTransactionFilter(BalancedTransactionFilter):
 class PredictedTransactionFilter(TransactionFilter):
     """Return transactions that have a posting predicted by the automatic classifier"""
 
-    def _cond_impl(self, entry: data.Directive) -> bool:
+    def _cond_impl(self, entry: Directive | MutableDirective) -> bool:
         return is_predicted(entry)
 
 
@@ -125,7 +129,9 @@ class NonduplicatedTransactionFilter(TransactionFilter):
         self._existing_transactions = existing_transactions
         self._accepted_delay = accepted_delay
 
-    def _filter_impl(self, entries: data.Entries) -> data.Entries:
+    def _filter_impl(
+        self, entries: Entries | MutableEntries
+    ) -> Entries | MutableEntries:
         filtered_entries = []
 
         for idx, entry in enumerate(entries):
@@ -148,3 +154,19 @@ class NonduplicatedTransactionFilter(TransactionFilter):
 
             if entry_valid:
                 filtered_entries.append(entry)
+
+        return filtered_entries
+
+
+class AccountTransactionFilter(TransactionFilter):
+    """Filter that only passes transactions"""
+
+    def __init__(self, account: str) -> None:
+        super().__init__()
+        self._account = account
+        self._extractor = TransactionRecordSourceAccountExtractor()
+
+    def _cond_impl(self, entry: Directive | MutableDirective) -> bool:
+        if not isinstance(entry, Transaction | MutableTransaction):
+            return False
+        return self._extractor.extract_one(entry) == self._account
