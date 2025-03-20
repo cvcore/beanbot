@@ -101,9 +101,38 @@
       <el-skeleton :rows="5" animated />
     </div>
 
+    <!-- Batch edit actions (visible when transactions are selected) -->
+    <div v-if="!loading && selectedTransactions.length > 0" class="batch-actions">
+      <el-alert
+        title="Batch Edit Mode"
+        type="info"
+        :closable="false"
+        show-icon
+      >
+        <template #default>
+          <span>{{ selectedTransactions.length }} transactions selected.</span>
+          <div class="batch-buttons">
+            <el-button size="small" @click="clearSelection">Clear Selection</el-button>
+            <el-button type="primary" size="small" @click="showBatchEditDialog">Batch Edit</el-button>
+          </div>
+        </template>
+      </el-alert>
+    </div>
+
     <!-- Table section -->
-    <div v-else>
-      <el-table :data="transactions" style="width: 100%" border v-loading="loading">
+    <div v-if="!loading">
+      <el-table
+        :data="transactions"
+        :row-class-name="rowClassNameHandler"
+        style="width: 100%"
+        border
+        v-loading="loading"
+        @row-click="handleRowClick"
+        ref="transactionTable"
+      >
+        <!-- Selection column -->
+        <el-table-column type="selection" width="55" />
+
         <el-table-column label="Flag" width="80" align="center">
           <template #default="scope">
             <el-select v-model="scope.row.flag" style="width: 60px">
@@ -167,7 +196,7 @@
             <el-button
               size="small"
               type="primary"
-              @click="editPostings(scope.row)"
+              @click.stop="editPostings(scope.row)"
             >
               Edit Postings
             </el-button>
@@ -175,13 +204,18 @@
               size="small"
               type="success"
               circle
-              @click="saveTransaction(scope.row)"
+              @click.stop="saveTransaction(scope.row)"
               :loading="scope.row.saving"
             >
               <el-icon><Check /></el-icon>
             </el-button>
           </template>
         </el-table-column>
+
+        <!-- Custom class for highlighting changed rows -->
+        <template #row-class="{ row }">
+          {{ isTransactionChanged(row) ? 'changed-row' : '' }}
+        </template>
       </el-table>
 
       <!-- Pagination -->
@@ -296,14 +330,64 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- Batch Edit Dialog -->
+    <el-dialog
+      v-model="batchEditDialogVisible"
+      title="Batch Edit Transactions"
+      width="60%"
+    >
+      <div>
+        <p>Editing {{ selectedTransactions.length }} transactions</p>
+
+        <el-form label-width="120px">
+          <el-form-item label="Flag">
+            <el-select v-model="batchEdit.flag" placeholder="Select flag" clearable>
+              <el-option label="*" value="*" />
+              <el-option label="!" value="!" />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="Add tags">
+            <el-select v-model="batchEdit.addTags" placeholder="Select tags to add" multiple>
+              <el-option
+                v-for="tag in availableTags"
+                :key="tag"
+                :label="tag"
+                :value="tag"
+              />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="Remove tags">
+            <el-select v-model="batchEdit.removeTags" placeholder="Select tags to remove" multiple>
+              <el-option
+                v-for="tag in allTagsInSelected"
+                :key="tag"
+                :label="tag"
+                :value="tag"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="batchEditDialogVisible = false">Cancel</el-button>
+          <el-button type="primary" @click="applyBatchEdit">Apply Changes</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import { Delete, Plus, Upload, Check, Search, Refresh } from '@element-plus/icons-vue';
 import axios from 'axios';
+import _ from 'lodash';
 
 // API base URL - change this to match your FastAPI server
 const API_BASE_URL = 'http://localhost:8000/api';
@@ -321,6 +405,7 @@ export default {
   setup() {
     // State
     const transactions = ref([]);
+    const originalTransactions = ref([]); // For tracking changes
     const availableAccounts = ref([]);
     const availableTags = ref([]);
     const availableCurrencies = ref([]);
@@ -328,12 +413,22 @@ export default {
     const savingAll = ref(false);
     const tagDialogVisible = ref(false);
     const postingsDialogVisible = ref(false);
+    const batchEditDialogVisible = ref(false);
     const newTagValue = ref('');
     const currentTransaction = ref(null);
     const currentTaggedTransaction = ref(null);
     const totalItems = ref(0);
     const currentPage = ref(1);
     const pageSize = ref(20);
+    const lastSelectedIndex = ref(-1);
+    const transactionTable = ref(null);
+
+    // Batch edit state
+    const batchEdit = reactive({
+      flag: '',
+      addTags: [],
+      removeTags: []
+    });
 
     // Filters
     const filters = reactive({
@@ -344,6 +439,39 @@ export default {
       tag: '',
       currency: ''
     });
+
+    // Computed properties
+    const selectedTransactions = computed(() => {
+      if (!transactionTable.value) return [];
+      return transactionTable.value.getSelectionRows();
+    });
+
+    const allTagsInSelected = computed(() => {
+      const allTags = new Set();
+      selectedTransactions.value.forEach(tx => {
+        tx.tags.forEach(tag => allTags.add(tag));
+      });
+      return Array.from(allTags);
+    });
+
+    // Check if transaction has been modified
+    const isTransactionChanged = (transaction) => {
+      const original = originalTransactions.value.find(
+        t => t.meta.beanbot_uuid === transaction.meta.beanbot_uuid
+      );
+
+      if (!original) return false;
+
+      // Deep compare transaction with original, excluding 'saving' property
+      const tx1 = _.cloneDeep(transaction);
+      const tx2 = _.cloneDeep(original);
+
+      // Remove properties we don't want to compare
+      delete tx1.saving;
+      delete tx2.saving;
+
+      return !_.isEqual(tx1, tx2);
+    };
 
     // Load reference data
     const loadReferenceData = async () => {
@@ -366,6 +494,7 @@ export default {
     // Load transactions with current filters and pagination
     const loadTransactions = async () => {
       loading.value = true;
+
       try {
         // Build query parameters
         const params = {
@@ -384,12 +513,24 @@ export default {
 
         // Update state
         transactions.value = response.data.data.items;
-        totalItems.value = response.data.data.total;
 
         // Add saving flag to each transaction
         transactions.value.forEach(tx => {
           tx.saving = false;
         });
+
+        // Store original state for change detection
+        originalTransactions.value = _.cloneDeep(transactions.value);
+
+        totalItems.value = response.data.data.total;
+
+        // Clear any previous selection
+        nextTick(() => {
+          if (transactionTable.value) {
+            transactionTable.value.clearSelection();
+          }
+        });
+
       } catch (error) {
         console.error('Error loading transactions:', error);
         ElMessage.error('Failed to load transactions');
@@ -415,6 +556,42 @@ export default {
     const handleCurrentChange = (newPage) => {
       currentPage.value = newPage;
       loadTransactions();
+    };
+
+    // Selection handling
+    const handleRowClick = (row, column, event) => {
+      if (!transactionTable.value) return;
+
+      const index = transactions.value.findIndex(t => t.meta.beanbot_uuid === row.meta.beanbot_uuid);
+      if (index === -1) return;
+
+      // Shift key for range selection
+      if (event.shiftKey && lastSelectedIndex.value >= 0) {
+        const start = Math.min(lastSelectedIndex.value, index);
+        const end = Math.max(lastSelectedIndex.value, index);
+
+        for (let i = start; i <= end; i++) {
+          transactionTable.value.toggleRowSelection(transactions.value[i], true);
+        }
+      }
+      // Cmd/Ctrl key for individual toggle
+      else if (event.metaKey || event.ctrlKey) {
+        transactionTable.value.toggleRowSelection(row);
+      }
+      // Normal click
+      else {
+        transactionTable.value.clearSelection();
+        transactionTable.value.toggleRowSelection(row, true);
+      }
+
+      lastSelectedIndex.value = index;
+    };
+
+    // Clear all selections
+    const clearSelection = () => {
+      if (transactionTable.value) {
+        transactionTable.value.clearSelection();
+      }
     };
 
     // Tag operations
@@ -498,6 +675,45 @@ export default {
       callback(results.map(account => ({ value: account })));
     };
 
+    // Batch editing
+    const showBatchEditDialog = () => {
+      // Reset batch edit form
+      batchEdit.flag = '';
+      batchEdit.addTags = [];
+      batchEdit.removeTags = [];
+
+      batchEditDialogVisible.value = true;
+    };
+
+    const applyBatchEdit = () => {
+      const selected = selectedTransactions.value;
+      if (!selected.length) return;
+
+      selected.forEach(transaction => {
+        // Update flag if specified
+        if (batchEdit.flag) {
+          transaction.flag = batchEdit.flag;
+        }
+
+        // Add tags
+        if (batchEdit.addTags.length) {
+          const currentTags = new Set(transaction.tags);
+          batchEdit.addTags.forEach(tag => currentTags.add(tag));
+          transaction.tags = Array.from(currentTags);
+        }
+
+        // Remove tags
+        if (batchEdit.removeTags.length) {
+          transaction.tags = transaction.tags.filter(tag =>
+            !batchEdit.removeTags.includes(tag)
+          );
+        }
+      });
+
+      batchEditDialogVisible.value = false;
+      ElMessage.success(`Changes applied to ${selected.length} transactions`);
+    };
+
     // Save a single transaction
     const saveTransaction = async (transaction) => {
       transaction.saving = true;
@@ -505,6 +721,12 @@ export default {
       try {
         const uuid = transaction.meta.beanbot_uuid;
         await axios.put(`${API_BASE_URL}/transactions/${uuid}`, transaction);
+
+        // Update original state after successful save
+        const index = originalTransactions.value.findIndex(t => t.meta.beanbot_uuid === uuid);
+        if (index >= 0) {
+          originalTransactions.value[index] = _.cloneDeep(transaction);
+        }
 
         ElMessage.success('Transaction updated successfully');
       } catch (error) {
@@ -520,9 +742,28 @@ export default {
       savingAll.value = true;
 
       try {
+        // First, save all modified transactions
+        const changedTxs = transactions.value.filter(tx => isTransactionChanged(tx));
+
+        if (changedTxs.length === 0) {
+          ElMessage.info('No changes to save');
+          savingAll.value = false;
+          return;
+        }
+
+        // Save each changed transaction
+        for (const tx of changedTxs) {
+          const uuid = tx.meta.beanbot_uuid;
+          await axios.put(`${API_BASE_URL}/transactions/${uuid}`, tx);
+        }
+
+        // Then save to file
         await axios.post(`${API_BASE_URL}/save`);
 
-        ElMessage.success('All changes saved to file');
+        // Update original state
+        originalTransactions.value = _.cloneDeep(transactions.value);
+
+        ElMessage.success(`Saved ${changedTxs.length} transactions to file`);
       } catch (error) {
         console.error('Error saving changes:', error);
         ElMessage.error('Failed to save changes to file');
@@ -537,6 +778,11 @@ export default {
       await loadTransactions();
     });
 
+    // Table row state
+    const rowClassNameHandler = ({ row }) => {
+      return isTransactionChanged(row) ? 'changed-row' : '';
+    };
+
     return {
       // State
       transactions,
@@ -548,12 +794,19 @@ export default {
       filters,
       tagDialogVisible,
       postingsDialogVisible,
+      batchEditDialogVisible,
       newTagValue,
       currentTransaction,
       currentTaggedTransaction,
       totalItems,
       currentPage,
       pageSize,
+      batchEdit,
+      transactionTable,
+
+      // Computed
+      selectedTransactions,
+      allTagsInSelected,
 
       // Methods
       loadTransactions,
@@ -569,7 +822,13 @@ export default {
       savePostings,
       queryAccounts,
       saveTransaction,
-      saveAllChanges
+      saveAllChanges,
+      handleRowClick,
+      clearSelection,
+      showBatchEditDialog,
+      applyBatchEdit,
+      isTransactionChanged,
+      rowClassNameHandler
     };
   }
 };
@@ -626,6 +885,15 @@ export default {
   padding: 20px;
 }
 
+.batch-actions {
+  margin-bottom: 15px;
+}
+
+.batch-buttons {
+  margin-top: 8px;
+  display: flex;
+  gap: 10px;
+}
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .action-buttons {
@@ -636,5 +904,17 @@ export default {
   .action-buttons .el-button {
     width: 100%;
   }
+}
+
+</style>
+
+
+<style>
+
+.el-table .changed-row {
+  --el-table-tr-bg-color: var(--el-color-warning-light-9);
+}
+.el-table .success-row {
+  --el-table-tr-bg-color: var(--el-color-success-light-9);
 }
 </style>
