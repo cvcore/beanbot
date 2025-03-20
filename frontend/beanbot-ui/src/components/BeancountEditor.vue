@@ -205,12 +205,6 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Sum Counter Amounts" min-width="180">
-          <template #default="scope">
-            <span>{{ getSumCounterAmounts(scope.row) }}</span>
-          </template>
-        </el-table-column>
-
         <el-table-column label="Tags" min-width="150">
           <template #default="scope">
             <div class="tag-container">
@@ -392,6 +386,29 @@
             </el-select>
           </el-form-item>
 
+          <el-form-item label="Booked Account">
+            <el-autocomplete
+              v-model="batchEdit.bookedAccount"
+              :fetch-suggestions="queryAccounts"
+              placeholder="Change booked account (first posting)"
+              style="width: 100%"
+              clearable
+            />
+          </el-form-item>
+
+          <el-form-item label="Counter Account">
+            <el-autocomplete
+              v-model="batchEdit.counterAccount"
+              :fetch-suggestions="queryAccounts"
+              placeholder="Change counter account (will replace all counter accounts)"
+              style="width: 100%"
+              clearable
+            />
+            <div class="form-help-text">
+              Note: If a transaction has multiple counter accounts, they will all be replaced with this account.
+            </div>
+          </el-form-item>
+
           <el-form-item label="Add tags">
             <el-select v-model="batchEdit.addTags" placeholder="Select tags to add" multiple>
               <el-option
@@ -471,7 +488,9 @@ export default {
     const batchEdit = reactive({
       flag: '',
       addTags: [],
-      removeTags: []
+      removeTags: [],
+      bookedAccount: '',
+      counterAccount: ''
     });
 
     // Filters
@@ -751,6 +770,8 @@ export default {
       batchEdit.flag = '';
       batchEdit.addTags = [];
       batchEdit.removeTags = [];
+      batchEdit.bookedAccount = '';
+      batchEdit.counterAccount = '';
 
       batchEditDialogVisible.value = true;
     };
@@ -763,6 +784,33 @@ export default {
         // Update flag if specified
         if (batchEdit.flag) {
           transaction.flag = batchEdit.flag;
+        }
+
+        // Update booked account (first posting)
+        if (batchEdit.bookedAccount && transaction.postings.length > 0) {
+          transaction.postings[0].account = batchEdit.bookedAccount;
+          transaction._bookedAccount = batchEdit.bookedAccount;
+        }
+
+        // Update counter account (remaining postings)
+        if (batchEdit.counterAccount && transaction.postings.length > 1) {
+          // If there are multiple counter accounts
+          if (transaction.postings.length > 2) {
+            // Keep only the first posting (booked account) and the first counter account
+            transaction.postings = transaction.postings.slice(0, 2);
+          }
+
+          // Update the counter account (second posting)
+          transaction.postings[1].account = batchEdit.counterAccount;
+          transaction._counterAccount = batchEdit.counterAccount;
+
+          // Set is_missing = true for the amount
+          if (!transaction.postings[1].units) {
+            transaction.postings[1].units = {};
+          }
+          transaction.postings[1].units.is_missing = true;
+          transaction.postings[1].units.number = null;
+          transaction.postings[1].units.currency = null;
         }
 
         // Add tags
@@ -887,43 +935,6 @@ export default {
       return 'MULTIPLE';
     };
 
-    const getSumCounterAmounts = (transaction) => {
-      if (!transaction || !transaction.postings || transaction.postings.length <= 1) {
-        return 'N/A';
-      }
-
-      // Check if any counter account has is_missing: true
-      const hasMissingAmount = transaction.postings.slice(1).some(p =>
-        p.units && p.units.is_missing
-      );
-
-      if (hasMissingAmount) {
-        return 'None';
-      }
-
-      // Group counter amounts by currency
-      const amountsByCurrency = {};
-      transaction.postings.slice(1).forEach(posting => {
-        if (posting.units && posting.units.number && posting.units.currency) {
-          const currency = posting.units.currency;
-          const amount = parseFloat(posting.units.number);
-
-          if (!amountsByCurrency[currency]) {
-            amountsByCurrency[currency] = 0;
-          }
-
-          amountsByCurrency[currency] += amount;
-        }
-      });
-
-      // Format the sums by currency
-      const formattedSums = Object.entries(amountsByCurrency).map(([currency, amount]) =>
-        `${amount.toFixed(2)} ${currency}`
-      );
-
-      return formattedSums.join(', ') || 'None';
-    };
-
     // New methods for updating booked account and counter account
     const updateBookedAccount = (transaction) => {
       if (!transaction || !transaction.postings || transaction.postings.length === 0) {
@@ -1025,7 +1036,6 @@ export default {
       getBookedAccount,
       getBookedAmount,
       getCounterAccounts,
-      getSumCounterAmounts,
       updateBookedAccount,
       updateCounterAccount
     };
@@ -1103,6 +1113,12 @@ export default {
 .disabled-input {
   background-color: #f5f7fa;
   cursor: pointer;
+}
+
+.form-help-text {
+  color: #909399;
+  font-size: 12px;
+  margin-top: 4px;
 }
 
 /* Responsive adjustments */
