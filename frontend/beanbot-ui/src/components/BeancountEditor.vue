@@ -167,6 +167,50 @@
           </template>
         </el-table-column>
 
+        <el-table-column label="Booked Account" min-width="180">
+          <template #default="scope">
+            <el-autocomplete
+              v-model="scope.row._bookedAccount"
+              :fetch-suggestions="queryAccounts"
+              placeholder="Enter account"
+              style="width: 100%"
+              @change="updateBookedAccount(scope.row)"
+              @select="updateBookedAccount(scope.row)"
+            />
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Booked Amount" min-width="150">
+          <template #default="scope">
+            <span>{{ getBookedAmount(scope.row) }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Counter Account(s)" min-width="180">
+          <template #default="scope">
+            <el-autocomplete
+              v-model="scope.row._counterAccount"
+              :fetch-suggestions="queryAccounts"
+              placeholder="Enter account"
+              style="width: 100%"
+              @change="updateCounterAccount(scope.row)"
+              @select="updateCounterAccount(scope.row)"
+              :class="{ 'disabled-input': getCounterAccounts(scope.row) === 'MULTIPLE' }"
+              :title="getCounterAccounts(scope.row) === 'MULTIPLE' ?
+                'Multiple counter accounts. Editing will replace them all with a single account.' : ''"
+            />
+            <span v-if="getCounterAccounts(scope.row) === 'MULTIPLE'" class="multiple-indicator">
+              (MULTIPLE)
+            </span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Sum Counter Amounts" min-width="180">
+          <template #default="scope">
+            <span>{{ getSumCounterAmounts(scope.row) }}</span>
+          </template>
+        </el-table-column>
+
         <el-table-column label="Tags" min-width="150">
           <template #default="scope">
             <div class="tag-container">
@@ -517,6 +561,17 @@ export default {
         // Add saving flag to each transaction
         transactions.value.forEach(tx => {
           tx.saving = false;
+
+          // Initialize editable account fields
+          tx._bookedAccount = tx.postings.length > 0 ? tx.postings[0].account : '';
+
+          // Initialize counter account field
+          if (tx.postings.length > 1) {
+            const counterAccounts = tx.postings.slice(1).map(p => p.account);
+            tx._counterAccount = counterAccounts.length === 1 ? counterAccounts[0] : 'MULTIPLE';
+          } else {
+            tx._counterAccount = '';
+          }
         });
 
         // Store original state for change detection
@@ -659,6 +714,21 @@ export default {
       if (index >= 0) {
         // Only update the postings
         transactions.value[index].postings = currentTransaction.value.postings;
+
+        // Update editable account fields
+        transactions.value[index]._bookedAccount = transactions.value[index].postings.length > 0
+          ? transactions.value[index].postings[0].account
+          : '';
+
+        // Update counter account field
+        if (transactions.value[index].postings.length > 1) {
+          const counterAccounts = transactions.value[index].postings.slice(1).map(p => p.account);
+          transactions.value[index]._counterAccount = counterAccounts.length === 1
+            ? counterAccounts[0]
+            : 'MULTIPLE';
+        } else {
+          transactions.value[index]._counterAccount = '';
+        }
       }
 
       postingsDialogVisible.value = false;
@@ -745,25 +815,24 @@ export default {
         // First, save all modified transactions
         const changedTxs = transactions.value.filter(tx => isTransactionChanged(tx));
 
-        if (changedTxs.length === 0) {
-          ElMessage.info('No changes to save');
-          savingAll.value = false;
-          return;
-        }
-
         // Save each changed transaction
-        for (const tx of changedTxs) {
-          const uuid = tx.meta.beanbot_uuid;
-          await axios.put(`${API_BASE_URL}/transactions/${uuid}`, tx);
+        if (changedTxs.length > 0) {
+          for (const tx of changedTxs) {
+            const uuid = tx.meta.beanbot_uuid;
+            await axios.put(`${API_BASE_URL}/transactions/${uuid}`, tx);
+          }
+
+          // Update original state after saving
+          originalTransactions.value = _.cloneDeep(transactions.value);
+          ElMessage.success(`Updated ${changedTxs.length} transactions`);
+        } else {
+          ElMessage.info('No transaction changes detected');
         }
 
-        // Then save to file
+        // Always save to file, even if no changes detected in the UI
         await axios.post(`${API_BASE_URL}/save`);
+        ElMessage.success('All changes saved to disk');
 
-        // Update original state
-        originalTransactions.value = _.cloneDeep(transactions.value);
-
-        ElMessage.success(`Saved ${changedTxs.length} transactions to file`);
       } catch (error) {
         console.error('Error saving changes:', error);
         ElMessage.error('Failed to save changes to file');
@@ -781,6 +850,130 @@ export default {
     // Table row state
     const rowClassNameHandler = ({ row }) => {
       return isTransactionChanged(row) ? 'changed-row' : '';
+    };
+
+    // Helper methods for transaction data columns
+    const getBookedAccount = (transaction) => {
+      if (!transaction || !transaction.postings || transaction.postings.length === 0) {
+        return 'N/A';
+      }
+      return transaction.postings[0].account;
+    };
+
+    const getBookedAmount = (transaction) => {
+      if (!transaction || !transaction.postings || transaction.postings.length === 0) {
+        return 'N/A';
+      }
+
+      const firstPosting = transaction.postings[0];
+      if (firstPosting.units.is_missing) {
+        return 'None';
+      }
+
+      return `${firstPosting.units.number} ${firstPosting.units.currency}`;
+    };
+
+    const getCounterAccounts = (transaction) => {
+      if (!transaction || !transaction.postings || transaction.postings.length <= 1) {
+        return 'N/A';
+      }
+
+      const counterAccounts = transaction.postings.slice(1).map(p => p.account);
+
+      if (counterAccounts.length === 1) {
+        return counterAccounts[0];
+      }
+
+      return 'MULTIPLE';
+    };
+
+    const getSumCounterAmounts = (transaction) => {
+      if (!transaction || !transaction.postings || transaction.postings.length <= 1) {
+        return 'N/A';
+      }
+
+      // Check if any counter account has is_missing: true
+      const hasMissingAmount = transaction.postings.slice(1).some(p =>
+        p.units && p.units.is_missing
+      );
+
+      if (hasMissingAmount) {
+        return 'None';
+      }
+
+      // Group counter amounts by currency
+      const amountsByCurrency = {};
+      transaction.postings.slice(1).forEach(posting => {
+        if (posting.units && posting.units.number && posting.units.currency) {
+          const currency = posting.units.currency;
+          const amount = parseFloat(posting.units.number);
+
+          if (!amountsByCurrency[currency]) {
+            amountsByCurrency[currency] = 0;
+          }
+
+          amountsByCurrency[currency] += amount;
+        }
+      });
+
+      // Format the sums by currency
+      const formattedSums = Object.entries(amountsByCurrency).map(([currency, amount]) =>
+        `${amount.toFixed(2)} ${currency}`
+      );
+
+      return formattedSums.join(', ') || 'None';
+    };
+
+    // New methods for updating booked account and counter account
+    const updateBookedAccount = (transaction) => {
+      if (!transaction || !transaction.postings || transaction.postings.length === 0) {
+        return;
+      }
+
+      // Update the account in the first posting
+      transaction.postings[0].account = transaction._bookedAccount;
+    };
+
+    const updateCounterAccount = (transaction) => {
+      if (!transaction || !transaction.postings || transaction.postings.length <= 1) {
+        return;
+      }
+
+      const newCounterAccount = transaction._counterAccount;
+
+      // If the transaction previously had multiple counter accounts
+      if (transaction.postings.length > 2) {
+        // Replace all counter accounts with a single account
+        const secondPosting = transaction.postings[1];
+
+        // Keep only the first two postings (booked account and first counter account)
+        transaction.postings = transaction.postings.slice(0, 2);
+
+        // Update the account of the second posting
+        secondPosting.account = newCounterAccount;
+
+        // Set is_missing = true for the amount
+        if (!secondPosting.units) {
+          secondPosting.units = {};
+        }
+        secondPosting.units.is_missing = true;
+        secondPosting.units.number = null;
+        secondPosting.units.currency = null;
+      }
+      // If the transaction has exactly one counter account, just update it
+      else if (transaction.postings.length === 2) {
+        transaction.postings[1].account = newCounterAccount;
+
+        // If the counter account name was changed, set is_missing = true
+        if (transaction._counterAccount !== transaction.postings[1].account) {
+          if (!transaction.postings[1].units) {
+            transaction.postings[1].units = {};
+          }
+          transaction.postings[1].units.is_missing = true;
+          transaction.postings[1].units.number = null;
+          transaction.postings[1].units.currency = null;
+        }
+      }
     };
 
     return {
@@ -828,7 +1021,13 @@ export default {
       showBatchEditDialog,
       applyBatchEdit,
       isTransactionChanged,
-      rowClassNameHandler
+      rowClassNameHandler,
+      getBookedAccount,
+      getBookedAmount,
+      getCounterAccounts,
+      getSumCounterAmounts,
+      updateBookedAccount,
+      updateCounterAccount
     };
   }
 };
@@ -894,6 +1093,18 @@ export default {
   display: flex;
   gap: 10px;
 }
+
+.multiple-indicator {
+  color: #909399;
+  font-size: 12px;
+  margin-left: 5px;
+}
+
+.disabled-input {
+  background-color: #f5f7fa;
+  cursor: pointer;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .action-buttons {
@@ -905,7 +1116,6 @@ export default {
     width: 100%;
   }
 }
-
 </style>
 
 
