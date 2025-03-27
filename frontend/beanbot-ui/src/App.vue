@@ -1,26 +1,31 @@
 <template>
     <div id="app">
-      <beancount-editor />
+      <Toast />
+      <beancount-editor-prime />
     </div>
   </template>
 
   <script>
-  import BeancountEditor from './components/BeancountEditor.vue';
+  import BeancountEditorPrime from './components/BeancountEditorPrime.vue';
+  import Toast from 'primevue/toast';
 
   export default {
     name: 'App',
     components: {
-      BeancountEditor
+      BeancountEditorPrime,
+      Toast
     }
   };
   </script>
 
   <style>
   #app {
-    font-family: Avenir, Helvetica, Arial, sans-serif;
+    font-family: var(--font-family);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    color: #2c3e50;
-    margin-top: 20px;
+    color: var(--text-color);
+    margin-top: 1.25rem;
   }
+
+  /* Add any global styles here */
   </style>
