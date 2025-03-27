@@ -577,8 +577,9 @@ export default {
         // Update state
         transactions.value = response.data.data.items;
 
-        // Add saving flag to each transaction
+        // Process each transaction to add UI-specific properties
         transactions.value.forEach(tx => {
+          // Add saving flag
           tx.saving = false;
 
           // Initialize editable account fields
@@ -705,8 +706,7 @@ export default {
         account: '',
         units: {
           number: null,
-          currency: availableCurrencies.value[0] || 'USD',
-          is_missing: false
+          currency: availableCurrencies.value[0] || 'USD'
         },
         cost: null,
         price: null,
@@ -804,13 +804,10 @@ export default {
           transaction.postings[1].account = batchEdit.counterAccount;
           transaction._counterAccount = batchEdit.counterAccount;
 
-          // Set is_missing = true for the amount
+          // Set missing values for the amount
           if (!transaction.postings[1].units) {
-            transaction.postings[1].units = {};
+            transaction.postings[1].units = "__MISSING__";
           }
-          transaction.postings[1].units.is_missing = true;
-          transaction.postings[1].units.number = null;
-          transaction.postings[1].units.currency = null;
         }
 
         // Add tags
@@ -881,6 +878,13 @@ export default {
         await axios.post(`${API_BASE_URL}/save`);
         ElMessage.success('All changes saved to disk');
 
+        // Reload transactions from file to reflect any backend changes
+        await axios.post(`${API_BASE_URL}/reload`);
+
+        // Reload the transactions from server to reflect any backend changes
+        await loadTransactions();
+        ElMessage.success('Transactions reloaded from file');
+
       } catch (error) {
         console.error('Error saving changes:', error);
         ElMessage.error('Failed to save changes to file');
@@ -914,7 +918,7 @@ export default {
       }
 
       const firstPosting = transaction.postings[0];
-      if (firstPosting.units.is_missing) {
+      if (firstPosting.units === "__MISSING__") {
         return 'None';
       }
 
@@ -963,11 +967,10 @@ export default {
         // Update the account of the second posting
         secondPosting.account = newCounterAccount;
 
-        // Set is_missing = true for the amount
+        // Set missing values for the amount
         if (!secondPosting.units) {
-          secondPosting.units = {};
+          secondPosting.units = "__MISSING__";
         }
-        secondPosting.units.is_missing = true;
         secondPosting.units.number = null;
         secondPosting.units.currency = null;
       }
@@ -975,14 +978,11 @@ export default {
       else if (transaction.postings.length === 2) {
         transaction.postings[1].account = newCounterAccount;
 
-        // If the counter account name was changed, set is_missing = true
+        // If the counter account name was changed, set missing values
         if (transaction._counterAccount !== transaction.postings[1].account) {
           if (!transaction.postings[1].units) {
-            transaction.postings[1].units = {};
+            transaction.postings[1].units = "__MISSING__";
           }
-          transaction.postings[1].units.is_missing = true;
-          transaction.postings[1].units.number = null;
-          transaction.postings[1].units.currency = null;
         }
       }
     };
@@ -1045,9 +1045,10 @@ export default {
 
 <style scoped>
 .beancount-editor {
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   padding: 20px;
+  box-sizing: border-box;
 }
 
 .filter-section {
@@ -1056,6 +1057,8 @@ export default {
   border: 1px solid #ebeef5;
   border-radius: 4px;
   background-color: #f8f9fa;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .tag-container {
@@ -1131,6 +1134,43 @@ export default {
   .action-buttons .el-button {
     width: 100%;
   }
+}
+
+/* Add styles for the table container */
+.el-table {
+  width: 100% !important;
+}
+
+/* Ensure the table takes full width */
+:deep(.el-table__inner-wrapper) {
+  width: 100% !important;
+}
+
+:deep(.el-table__body-wrapper) {
+  width: 100% !important;
+}
+
+:deep(.el-table__header-wrapper) {
+  width: 100% !important;
+}
+
+:deep(.el-table__body) {
+  width: 100% !important;
+}
+
+:deep(.el-table__header) {
+  width: 100% !important;
+}
+
+/* Make sure columns expand properly */
+:deep(.el-table__cell) {
+  white-space: nowrap;
+}
+
+/* Ensure the table container is full width */
+.el-table-container {
+  width: 100%;
+  overflow-x: auto;
 }
 </style>
 
