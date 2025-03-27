@@ -7,7 +7,7 @@ import logging
 from fastapi import Body, FastAPI, HTTPException, Depends, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from beanbot.data.pydantic_serialization import Transaction
+from beanbot.data.pydantic_serialization import Amount, Transaction
 from beanbot.data.container import (
     _BEANBOT_LINENO_RANGE,
     _BEANBOT_UUID,
@@ -99,8 +99,15 @@ def get_collection_metadata(entries: List[Transaction]) -> TransactionMetadata:
             tags.update(entry.tags)
             for posting in entry.postings:
                 accounts.add(posting.account)
-                currencies.add(posting.units.currency)
-                if posting.price and posting.price.currency:
+                if (
+                    isinstance(posting.units, Amount)
+                    and posting.units.currency is not None
+                ):
+                    currencies.add(posting.units.currency)
+                if (
+                    isinstance(posting.price, Amount)
+                    and posting.price.currency is not None
+                ):
                     currencies.add(posting.price.currency)
 
     return TransactionMetadata(
@@ -187,8 +194,13 @@ async def get_transactions(
             for entry in filtered_entries:
                 has_currency = False
                 for posting in entry.postings:
-                    if posting.units.currency == currency or (
-                        posting.price and posting.price.currency == currency
+                    if (
+                        isinstance(posting.units, Amount)
+                        and posting.units.currency == currency
+                        or (
+                            isinstance(posting.price, Amount)
+                            and posting.price.currency == currency
+                        )
                     ):
                         has_currency = True
                         break
@@ -296,8 +308,9 @@ async def get_currencies(container: TransactionsContainer = Depends(get_containe
         currencies = set()
         for entry in container.entries:
             for posting in entry.postings:
-                currencies.add(posting.units.currency)
-                if posting.price and posting.price.currency:
+                if isinstance(posting.units, Amount):
+                    currencies.add(posting.units.currency)
+                if isinstance(posting.price, Amount):
                     currencies.add(posting.price.currency)
 
         currencies.discard(None)
@@ -419,6 +432,38 @@ async def save_transactions(container: TransactionsContainer = Depends(get_conta
         logger.error(f"Error saving transactions: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Error saving transactions: {str(e)}"
+        )
+
+
+@app.post("/api/reload", status_code=200)
+async def reload_transactions():
+    """
+    Reload transactions from the Beancount file.
+
+    Returns:
+    - Success message
+    """
+    try:
+        global transactions_container
+
+        # Reload transactions from file
+        transactions_container = TransactionsContainer.load_from_file(
+            BEANCOUNT_FILE_PATH, no_interpolation=NO_INTERPOLATION
+        )
+
+        logger.info(
+            f"Reloaded {len(transactions_container.entries)} transactions from file"
+        )
+
+        return {
+            "message": "Transactions reloaded successfully",
+            "count": len(transactions_container.entries),
+        }
+
+    except Exception as e:
+        logger.error(f"Error reloading transactions: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Error reloading transactions: {str(e)}"
         )
 
 
