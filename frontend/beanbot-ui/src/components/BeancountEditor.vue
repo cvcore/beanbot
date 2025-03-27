@@ -133,7 +133,13 @@
         <!-- Selection column -->
         <el-table-column type="selection" width="55" />
 
-        <el-table-column label="Flag" width="80" align="center">
+        <el-table-column
+          label="Flag"
+          width="80"
+          align="center"
+          sortable
+          :sort-method="(a, b) => sortByFlag(a, b)"
+        >
           <template #default="scope">
             <el-select v-model="scope.row.flag" style="width: 60px">
               <el-option label="*" value="*" />
@@ -142,7 +148,13 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Date" width="150" align="center">
+        <el-table-column
+          label="Date"
+          width="150"
+          align="center"
+          sortable
+          :sort-method="(a, b) => sortByDate(a, b)"
+        >
           <template #default="scope">
             <el-date-picker
               v-model="scope.row.date"
@@ -155,19 +167,34 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Payee" min-width="150">
+        <el-table-column
+          label="Payee"
+          min-width="150"
+          sortable
+          :sort-method="(a, b) => sortByPayee(a, b)"
+        >
           <template #default="scope">
             <el-input v-model="scope.row.payee" placeholder="Enter payee" />
           </template>
         </el-table-column>
 
-        <el-table-column label="Narration" min-width="200">
+        <el-table-column
+          label="Narration"
+          min-width="200"
+          sortable
+          :sort-method="(a, b) => sortByNarration(a, b)"
+        >
           <template #default="scope">
             <el-input v-model="scope.row.narration" placeholder="Enter narration" />
           </template>
         </el-table-column>
 
-        <el-table-column label="Booked Account" min-width="180">
+        <el-table-column
+          label="Booked Account"
+          min-width="180"
+          sortable
+          :sort-method="(a, b) => sortByBookedAccount(a, b)"
+        >
           <template #default="scope">
             <el-autocomplete
               v-model="scope.row._bookedAccount"
@@ -180,13 +207,23 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Booked Amount" min-width="150">
+        <el-table-column
+          label="Booked Amount"
+          min-width="150"
+          sortable
+          :sort-method="(a, b) => sortByBookedAmount(a, b)"
+        >
           <template #default="scope">
             <span>{{ getBookedAmount(scope.row) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="Counter Account(s)" min-width="180">
+        <el-table-column
+          label="Counter Account(s)"
+          min-width="180"
+          sortable
+          :sort-method="(a, b) => sortByCounterAccount(a, b)"
+        >
           <template #default="scope">
             <el-autocomplete
               v-model="scope.row._counterAccount"
@@ -199,13 +236,15 @@
               :title="getCounterAccounts(scope.row) === 'MULTIPLE' ?
                 'Multiple counter accounts. Editing will replace them all with a single account.' : ''"
             />
-            <span v-if="getCounterAccounts(scope.row) === 'MULTIPLE'" class="multiple-indicator">
-              (MULTIPLE)
-            </span>
           </template>
         </el-table-column>
 
-        <el-table-column label="Tags" min-width="150">
+        <el-table-column
+          label="Tags"
+          min-width="150"
+          sortable
+          :sort-method="(a, b) => sortByTags(a, b)"
+        >
           <template #default="scope">
             <div class="tag-container">
               <el-tag
@@ -987,6 +1026,47 @@ export default {
       }
     };
 
+    // Add sorting methods
+    const sortByFlag = (a, b) => {
+      return (a.flag || '').localeCompare(b.flag || '');
+    };
+
+    const sortByDate = (a, b) => {
+      return new Date(a.date) - new Date(b.date);
+    };
+
+    const sortByPayee = (a, b) => {
+      return (a.payee || '').localeCompare(b.payee || '');
+    };
+
+    const sortByNarration = (a, b) => {
+      return (a.narration || '').localeCompare(b.narration || '');
+    };
+
+    const sortByBookedAccount = (a, b) => {
+      const accountA = a.postings && a.postings.length > 0 ? a.postings[0].account : '';
+      const accountB = b.postings && b.postings.length > 0 ? b.postings[0].account : '';
+      return accountA.localeCompare(accountB);
+    };
+
+    const sortByBookedAmount = (a, b) => {
+      const amountA = a.postings && a.postings.length > 0 ? a.postings[0].units.number || 0 : 0;
+      const amountB = b.postings && b.postings.length > 0 ? b.postings[0].units.number || 0 : 0;
+      return amountA - amountB;
+    };
+
+    const sortByCounterAccount = (a, b) => {
+      const accountA = a.postings && a.postings.length > 1 ? a.postings[1].account : '';
+      const accountB = b.postings && b.postings.length > 1 ? b.postings[1].account : '';
+      return accountA.localeCompare(accountB);
+    };
+
+    const sortByTags = (a, b) => {
+      const tagsA = (a.tags || []).join(',');
+      const tagsB = (b.tags || []).join(',');
+      return tagsA.localeCompare(tagsB);
+    };
+
     return {
       // State
       transactions,
@@ -1037,7 +1117,15 @@ export default {
       getBookedAmount,
       getCounterAccounts,
       updateBookedAccount,
-      updateCounterAccount
+      updateCounterAccount,
+      sortByFlag,
+      sortByDate,
+      sortByPayee,
+      sortByNarration,
+      sortByBookedAccount,
+      sortByBookedAmount,
+      sortByCounterAccount,
+      sortByTags
     };
   }
 };
