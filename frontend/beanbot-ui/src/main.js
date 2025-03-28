@@ -11,8 +11,8 @@ import 'primeflex/primeflex.css';                       // PrimeFlex for layout
 // Import PrimeVue components (to be used globally)
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
-import Dropdown from 'primevue/dropdown';
-import Calendar from 'primevue/calendar';
+import Select from 'primevue/select';
+import DatePicker from 'primevue/datepicker';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Dialog from 'primevue/dialog';
@@ -39,8 +39,8 @@ app.use(ToastService);
 // Register PrimeVue components globally
 app.component('Button', Button);
 app.component('InputText', InputText);
-app.component('Dropdown', Dropdown);
-app.component('Calendar', Calendar);
+app.component('Select', Select);
+app.component('DatePicker', DatePicker);
 app.component('DataTable', DataTable);
 app.component('Column', Column);
 app.component('Dialog', Dialog);

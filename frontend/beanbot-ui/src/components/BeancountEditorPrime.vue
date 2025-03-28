@@ -1397,11 +1397,19 @@ export default {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 .beancount-editor {
   width: 100%;
   margin: 0;
   padding: 1.25rem;
   box-sizing: border-box;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Apply Inter font to all elements except icons */
+:deep(*:not(.pi)) {
+  font-family: 'Inter', sans-serif;
 }
 
 .filter-section {
