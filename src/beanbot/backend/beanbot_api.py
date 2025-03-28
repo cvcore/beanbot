@@ -7,6 +7,10 @@ import logging
 from fastapi import Body, FastAPI, HTTPException, Depends, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from beancount.core import data as d
+
+from beanbot.backend.predictor import get_predictor_singleton
+from beanbot.common.configs import BeanbotConfig
 from beanbot.data.pydantic_serialization import Amount, Transaction
 from beanbot.data.container import (
     _BEANBOT_LINENO_RANGE,
@@ -59,6 +63,7 @@ async def startup_event():
         transactions_container = TransactionsContainer.load_from_file(
             BEANCOUNT_FILE_PATH, no_interpolation=NO_INTERPOLATION
         )
+        BeanbotConfig.get_global().parse_file(BEANCOUNT_FILE_PATH)
         logger.info(f"Loaded {len(transactions_container.entries)} transactions")
     except Exception as e:
         logger.error(f"Error loading Beancount file: {e}", exc_info=True)
@@ -450,6 +455,7 @@ async def reload_transactions():
         transactions_container = TransactionsContainer.load_from_file(
             BEANCOUNT_FILE_PATH, no_interpolation=NO_INTERPOLATION
         )
+        BeanbotConfig.get_global().parse_file(BEANCOUNT_FILE_PATH)
 
         logger.info(
             f"Reloaded {len(transactions_container.entries)} transactions from file"
@@ -464,6 +470,79 @@ async def reload_transactions():
         logger.error(f"Error reloading transactions: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Error reloading transactions: {str(e)}"
+        )
+
+
+@app.post("/api/train", status_code=200)
+async def train_classifier(container: TransactionsContainer = Depends(get_container)):
+    """
+    Train the classifier on the transactions in the container.
+
+    Returns:
+    - Success message
+    """
+    try:
+        transactions = container.get_beancount_entries()
+        transactions_reviewed = [
+            t
+            for t in transactions
+            if isinstance(t, d.Transaction)
+            and not ("_new_dt" in t.tags or "_new_map" in t.tags)
+        ]
+        predictor = get_predictor_singleton(container.options_map)
+        predictor.train(transactions_reviewed)
+
+        return {"message": "Classifier trained successfully"}
+
+    except Exception as e:
+        logger.error(f"Error training classifier: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Error training classifier: {str(e)}"
+        )
+
+
+@app.post("/api/predict", status_code=200)
+async def predict_counter_accounts(
+    transaction_ids: List[str] = Body(...),
+    container: TransactionsContainer = Depends(get_container),
+):
+    """
+    Predict counter accounts for given transaction IDs.
+
+    Parameters:
+    - transaction_ids: List of transaction IDs to predict counter accounts for
+
+    Returns:
+    - Dictionary mapping transaction IDs to their predicted counter accounts
+    """
+    try:
+        # Get the transactions from the container
+        transactions = []
+        for tx_id in transaction_ids:
+            try:
+                tx = container.get_entry_by_id(tx_id)
+                transactions.append(tx.to_beancount())
+            except KeyError:
+                raise HTTPException(
+                    status_code=404, detail=f"Transaction with ID {tx_id} not found"
+                )
+
+        # Get the predictor singleton and make predictions
+        predictor = get_predictor_singleton({})
+        predicted_counter_accounts = predictor.predict_accounts(transactions)
+
+        return {
+            "message": "Predictions completed successfully",
+            "predictions": predicted_counter_accounts,
+        }
+
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Error predicting counter accounts: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Error predicting counter accounts: {str(e)}"
         )
 
 

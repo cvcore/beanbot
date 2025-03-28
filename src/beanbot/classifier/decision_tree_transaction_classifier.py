@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 
 from typing import Dict
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+
+from beancount.core.data import Account
 
 from beanbot.classifier.abstract_transaction_classifier import (
     AbstractTransactionClassifier,
@@ -19,12 +21,12 @@ class DecisionTreeTransactionClassifier(AbstractTransactionClassifier):
 
     def __init__(self, options_map: Dict):
         super().__init__(options_map, add_tags={self.ADD_TAG})
-        # self._classifier = DecisionTreeClassifier()
+        self._classifier = DecisionTreeClassifier()
         # self._classifier = KNeighborsClassifier(n_neighbors=1)
         # self._classifier = MLPClassifier(max_iter=1000, hidden_layer_sizes=(1000, 100), verbose=True)
-        self._classifier = RandomForestClassifier(
-            n_estimators=200, max_depth=20, random_state=1, verbose=True
-        )
+        # self._classifier = RandomForestClassifier(
+        #     n_estimators=200, max_depth=20, random_state=1, verbose=True
+        # )
         self._vectorizer = BagOfWordVectorizer()
         self._gt_label = None
 
@@ -57,3 +59,18 @@ class DecisionTreeTransactionClassifier(AbstractTransactionClassifier):
 
         transactions = self.add_postings_auto_balance(transactions, pred_accounts)
         return transactions
+
+
+class DecisionTreeAccountClassifier(DecisionTreeTransactionClassifier):
+    """Classify accounts for transactions. This is a temporary wrapper to use the classifier for predicting accounts in the
+    frontend."""
+
+    def __init__(self, options_map: dict):
+        super().__init__(options_map)
+
+    def predict_accounts(self, transactions: Transactions) -> list[Account]:
+        trans_vec = self._vectorizer.vectorize(transactions)
+        pred_label = self._classifier.predict(trans_vec.vec)
+        pred_accounts = self._vectorizer.devectorize_label(pred_label)
+
+        return pred_accounts

@@ -91,6 +91,8 @@
         <span class="font-bold">{{ selectedRows.length }} transactions selected</span>
         <div class="flex gap-2">
           <Button label="Clear Selection" class="p-button-sm p-button-text" @click="clearSelection" />
+          <Button label="Predict" class="p-button-sm p-button-info" @click="predictCounterAccounts" :loading="predicting" :disabled="hasPredictions" />
+          <Button v-if="hasPredictions" label="Revert Predictions" class="p-button-sm p-button-warning" @click="revertAllPredictions" />
           <Button label="Batch Edit" class="p-button-sm p-button-primary" @click="showBatchEditDialog" />
         </div>
       </div>
@@ -185,18 +187,24 @@
 
         <Column field="_counterAccount" header="Counter Account(s)" :sortable="true">
           <template #body="slotProps">
-            <AutoComplete
-              v-model="slotProps.data._counterAccount"
-              :suggestions="filteredAccounts"
-              @complete="searchAccounts($event, slotProps.data)"
-              placeholder="Enter account"
-              @change="updateCounterAccount(slotProps.data)"
-              @item-select="updateCounterAccount(slotProps.data)"
-              class="w-full"
-              :class="{ 'disabled-input': getCounterAccounts(slotProps.data) === 'MULTIPLE' }"
-              :title="getCounterAccounts(slotProps.data) === 'MULTIPLE' ?
-                'Multiple counter accounts. Editing will replace them all with a single account.' : ''"
-            />
+            <div class="flex align-items-center gap-2 w-full">
+              <span v-if="slotProps.data.predicted" class="p-tag p-tag-info" style="font-size: 0.7rem;">Predicted</span>
+              <AutoComplete
+                v-model="slotProps.data._counterAccount"
+                :suggestions="filteredAccounts"
+                @complete="searchAccounts($event, slotProps.data)"
+                placeholder="Enter account"
+                @change="updateCounterAccount(slotProps.data)"
+                @item-select="updateCounterAccount(slotProps.data)"
+                class="w-full"
+                :class="{
+                  'disabled-input': getCounterAccounts(slotProps.data) === 'MULTIPLE',
+                  'predicted-input': slotProps.data.predicted
+                }"
+                :title="getCounterAccounts(slotProps.data) === 'MULTIPLE' ?
+                  'Multiple counter accounts. Editing will replace them all with a single account.' : ''"
+              />
+            </div>
           </template>
         </Column>
 
@@ -233,6 +241,13 @@
               @click.stop="editPostings(slotProps.data)"
             />
             <Button
+              v-if="slotProps.data.predicted"
+              icon="pi pi-undo"
+              class="p-button-warning p-button-rounded p-button-sm ml-2"
+              @click.stop="revertPrediction(slotProps.data)"
+              title="Revert Prediction"
+            />
+            <Button
               icon="pi pi-check"
               class="p-button-success p-button-rounded p-button-sm ml-2"
               @click.stop="saveTransaction(slotProps.data)"
@@ -261,6 +276,13 @@
           @click="reloadFromDisk"
           :loading="reloading"
           class="p-button-secondary"
+        />
+        <Button
+          label="Train Model"
+          icon="pi pi-sync"
+          @click="trainModel"
+          :loading="training"
+          class="p-button-info"
         />
         <Button
           label="Save All Changes"
@@ -490,6 +512,8 @@ export default {
     const loading = ref(false);
     const savingAll = ref(false);
     const reloading = ref(false);
+    const training = ref(false);
+    const predicting = ref(false);
     const tagDialogVisible = ref(false);
     const postingsDialogVisible = ref(false);
     const batchEditDialogVisible = ref(false);
@@ -502,6 +526,7 @@ export default {
     const transactionTable = ref(null);
     const selectedRows = ref([]);
     const filteredAccounts = ref([]);
+    const predictedTransactions = ref(new Map()); // Map to store original state of predicted transactions
 
     // Batch edit state
     const batchEdit = reactive({
@@ -534,6 +559,10 @@ export default {
         tx.tags.forEach(tag => allTags.add(tag));
       });
       return Array.from(allTags);
+    });
+
+    const hasPredictions = computed(() => {
+      return predictedTransactions.value.size > 0;
     });
 
     // Check if transaction has been modified
@@ -1086,6 +1115,206 @@ export default {
       }
     };
 
+    // Train the classifier model
+    const trainModel = async () => {
+      training.value = true;
+
+      try {
+        await axios.post(`${API_BASE_URL}/train`);
+        toast.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: 'Model trained successfully',
+          life: 3000
+        });
+      } catch (error) {
+        console.error('Error training model:', error);
+        toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: `Failed to train model: ${error.response?.data?.detail || error.message}`,
+          life: 3000
+        });
+      } finally {
+        training.value = false;
+      }
+    };
+
+    // Predict counter accounts for selected transactions
+    const predictCounterAccounts = async () => {
+      const selected = selectedRows.value;
+      if (!selected.length) {
+        toast.add({
+          severity: 'warn',
+          summary: 'Warning',
+          detail: 'No transactions selected for prediction',
+          life: 3000
+        });
+        return;
+      }
+
+      predicting.value = true;
+
+      try {
+        // Get transaction IDs
+        const transactionIds = selected.map(tx => tx.meta.beanbot_uuid);
+
+        // Call the prediction API
+        const response = await axios.post(`${API_BASE_URL}/predict`, transactionIds);
+
+        // Apply predictions
+        const predictions = response.data.predictions;
+        console.log('Predictions received:', predictions);
+
+        let updatedCount = 0;
+
+        // Loop through the selected transactions and apply predictions by index
+        selected.forEach((transaction, index) => {
+          const txId = transaction.meta.beanbot_uuid;
+          const predictedAccount = predictions[index]; // Use index instead of txId as key
+
+          console.log(`Transaction ${txId} (index ${index}):`, predictedAccount ? `Predicted: ${predictedAccount}` : 'No prediction');
+
+          if (predictedAccount) {
+            // Store original state before applying prediction (for revert functionality)
+            if (!predictedTransactions.value.has(txId)) {
+              predictedTransactions.value.set(txId, _.cloneDeep(transaction));
+            }
+
+            // Apply prediction
+            if (transaction.postings.length > 1) {
+              // If there are multiple counter accounts
+              if (transaction.postings.length > 2) {
+                // Keep only the first posting (booked account) and the second posting
+                transaction.postings = transaction.postings.slice(0, 2);
+              }
+
+              // Update the counter account (second posting)
+              transaction.postings[1].account = predictedAccount;
+              transaction._counterAccount = predictedAccount;
+
+              // Mark as predicted
+              transaction.predicted = true;
+              updatedCount++;
+
+              console.log(`Updated transaction ${txId} with account: ${predictedAccount}`);
+            }
+          }
+        });
+
+        console.log(`Updated ${updatedCount} transactions out of ${selected.length} selected`);
+
+        // Force UI refresh
+        transactions.value = [...transactions.value];
+
+        toast.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: `Applied predictions for ${updatedCount} transactions`,
+          life: 3000
+        });
+      } catch (error) {
+        console.error('Error predicting counter accounts:', error);
+        toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: `Failed to predict counter accounts: ${error.response?.data?.detail || error.message}`,
+          life: 3000
+        });
+      } finally {
+        predicting.value = false;
+      }
+    };
+
+    // Revert a single prediction
+    const revertPrediction = (transaction) => {
+      const txId = transaction.meta.beanbot_uuid;
+
+      if (predictedTransactions.value.has(txId)) {
+        // Get the original state
+        const originalTx = predictedTransactions.value.get(txId);
+
+        // Restore postings
+        transaction.postings = originalTx.postings;
+
+        // Restore UI properties
+        transaction._bookedAccount = transaction.postings.length > 0
+          ? transaction.postings[0].account
+          : '';
+
+        // Restore counter account field
+        if (transaction.postings.length > 1) {
+          const counterAccounts = transaction.postings.slice(1).map(p => p.account);
+          transaction._counterAccount = counterAccounts.length === 1
+            ? counterAccounts[0]
+            : 'MULTIPLE';
+        } else {
+          transaction._counterAccount = '';
+        }
+
+        // Remove predicted flag
+        delete transaction.predicted;
+
+        // Remove from the map
+        predictedTransactions.value.delete(txId);
+
+        toast.add({
+          severity: 'info',
+          summary: 'Reverted',
+          detail: 'Prediction reverted',
+          life: 2000
+        });
+      }
+    };
+
+    // Revert all predictions
+    const revertAllPredictions = () => {
+      if (predictedTransactions.value.size === 0) {
+        return;
+      }
+
+      // Iterate through all transactions
+      transactions.value.forEach(tx => {
+        const txId = tx.meta.beanbot_uuid;
+
+        if (predictedTransactions.value.has(txId)) {
+          // Get the original state
+          const originalTx = predictedTransactions.value.get(txId);
+
+          // Restore postings
+          tx.postings = originalTx.postings;
+
+          // Restore UI properties
+          tx._bookedAccount = tx.postings.length > 0
+            ? tx.postings[0].account
+            : '';
+
+          // Restore counter account field
+          if (tx.postings.length > 1) {
+            const counterAccounts = tx.postings.slice(1).map(p => p.account);
+            tx._counterAccount = counterAccounts.length === 1
+              ? counterAccounts[0]
+              : 'MULTIPLE';
+          } else {
+            tx._counterAccount = '';
+          }
+
+          // Remove predicted flag
+          delete tx.predicted;
+        }
+      });
+
+      // Clear the map
+      predictedTransactions.value.clear();
+
+      toast.add({
+        severity: 'info',
+        summary: 'Reverted',
+        detail: 'All predictions reverted',
+        life: 2000
+      });
+    };
+
     // Initialize
     onMounted(async () => {
       await loadReferenceData();
@@ -1101,6 +1330,8 @@ export default {
       loading,
       savingAll,
       reloading,
+      training,
+      predicting,
       filters,
       tagDialogVisible,
       postingsDialogVisible,
@@ -1115,10 +1346,12 @@ export default {
       transactionTable,
       selectedRows,
       filteredAccounts,
+      predictedTransactions,
 
       // Computed
       selectedTransactions,
       allTagsInSelected,
+      hasPredictions,
 
       // Methods
       loadTransactions,
@@ -1149,7 +1382,11 @@ export default {
       getCounterAccounts,
       updateBookedAccount,
       updateCounterAccount,
-      onSort
+      onSort,
+      trainModel,
+      predictCounterAccounts,
+      revertPrediction,
+      revertAllPredictions
     };
   }
 };
@@ -1201,15 +1438,15 @@ export default {
 
 /* PrimeVue-specific styling for changed rows */
 :deep(.changed-row) {
-  background-color: brown !important;
+  background-color: var(--p-orange-50) !important;
 }
 
 :deep(.p-datatable-tbody > tr.changed-row > td) {
-  background-color: brown !important;
+  background-color: var(--p-orange-50) !important;
 }
 
 :deep(.p-datatable-tbody > tr.p-highlight.changed-row > td) {
-  background-color: brown !important;
+  background-color: var(--p-orange-200) !important;
 }
 
 /* Make autocomplete take full width of its container */
@@ -1270,5 +1507,15 @@ export default {
 .custom-tag .p-button:hover {
   background-color: var(--blue-200);
   color: var(--blue-900);
+}
+
+/* Predicted field styling */
+.predicted-input {
+  background-color: var(--cyan-50) !important;
+  border-color: var(--cyan-200) !important;
+}
+
+:deep(.predicted-input input) {
+  background-color: var(--cyan-50) !important;
 }
 </style>

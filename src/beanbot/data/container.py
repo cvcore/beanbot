@@ -100,6 +100,10 @@ class TransactionsContainer(BaseContainer):
             entry.meta[_BEANBOT_UUID]: idx for idx, entry in enumerate(self._entries)
         }
 
+    @property
+    def options_map(self) -> dict:
+        return self._options_map
+
     @classmethod
     def load_from_file(
         cls, path: str, no_interpolation: bool = False
@@ -119,6 +123,10 @@ class TransactionsContainer(BaseContainer):
         entries = [Transaction.from_beancount(entry) for entry in entries]
 
         return cls(entries, errors, options_map)
+
+    def get_beancount_entries(self) -> list[d.Directive]:
+        entries = [entry.to_beancount() for entry in self._entries]
+        return entries
 
     def _get_changesets(self, add_newline: bool = True) -> dict[str, list[ChangeSet]]:
         """Return a dictionary of changesets for each file."""

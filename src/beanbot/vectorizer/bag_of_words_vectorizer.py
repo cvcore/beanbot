@@ -71,7 +71,7 @@ class BagOfWordVectorizer(AbstractVectorizer):
 
         return VectorizedTransactions(trans_desc_vec, cat_accounts_ind, learnable_mask)
 
-    def devectorize_label(self, label: Iterable[int]) -> Account:
+    def devectorize_label(self, label: Iterable[int]) -> list[Account]:
         return self._bd_hash.dehash(label)
 
     def fit_dictionary(self, transactions: Transactions):
