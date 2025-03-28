@@ -492,6 +492,10 @@ async def train_classifier(container: TransactionsContainer = Depends(get_contai
         predictor = get_predictor_singleton(container.options_map)
         predictor.train(transactions_reviewed)
 
+        if MODEL_PATH := os.environ.get("BEANBOT_MODEL_PATH"):
+            logger.info(f"Saving model to {MODEL_PATH}")
+            predictor.save_model(MODEL_PATH)
+
         return {"message": "Classifier trained successfully"}
 
     except Exception as e:
@@ -528,12 +532,15 @@ async def predict_counter_accounts(
                 )
 
         # Get the predictor singleton and make predictions
-        predictor = get_predictor_singleton({})
-        predicted_counter_accounts = predictor.predict_accounts(transactions)
+        predictor = get_predictor_singleton(container.options_map)
+        accounts, scores = zip(*predictor.predict_accounts(transactions))
+        accounts = list(accounts)
+        scores = [float(score) for score in scores]
 
         return {
             "message": "Predictions completed successfully",
-            "predictions": predicted_counter_accounts,
+            "predictions": list(accounts),
+            "scores": scores,
         }
 
     except HTTPException:
