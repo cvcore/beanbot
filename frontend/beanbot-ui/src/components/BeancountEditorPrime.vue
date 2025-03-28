@@ -28,7 +28,7 @@
           </div>
         </div>
         <div class="col-12 md:col-4">
-          <Dropdown
+          <Select
             v-model="filters.tag"
             :options="availableTags"
             placeholder="Filter by Tag"
@@ -41,7 +41,7 @@
 
       <div class="grid mt-2">
         <div class="col-12 md:col-4">
-          <Calendar
+          <DatePicker
             v-model="filters.fromDate"
             dateFormat="yy-mm-dd"
             placeholder="From Date"
@@ -51,7 +51,7 @@
           />
         </div>
         <div class="col-12 md:col-4">
-          <Calendar
+          <DatePicker
             v-model="filters.toDate"
             dateFormat="yy-mm-dd"
             placeholder="To Date"
@@ -61,7 +61,7 @@
           />
         </div>
         <div class="col-12 md:col-4">
-          <Dropdown
+          <Select
             v-model="filters.currency"
             :options="availableCurrencies"
             placeholder="Filter by Currency"
@@ -108,7 +108,7 @@
         stripedRows
         dataKey="meta.beanbot_uuid"
         rowHover
-        responsiveLayout="scroll"
+        tableStyle="min-width:50rem"
         @rowSelect="onRowSelect"
         @rowUnselect="onRowUnselect"
         @rowClick="handleRowClick"
@@ -125,7 +125,7 @@
 
         <Column field="flag" header="Flag" :sortable="true">
           <template #body="slotProps">
-            <Dropdown
+            <Select
               v-model="slotProps.data.flag"
               :options="['*', '!']"
               optionLabel=""
@@ -136,7 +136,7 @@
 
         <Column field="date" header="Date" :sortable="true">
           <template #body="slotProps">
-            <Calendar
+            <DatePicker
               v-model="slotProps.data.date"
               dateFormat="yy-mm-dd"
               placeholder="Select date"
@@ -354,7 +354,7 @@
             <div class="col-12 md:col-2">
               <div class="p-field">
                 <label>Currency</label>
-                <Dropdown
+                <Select
                   v-model="posting.units.currency"
                   :options="availableCurrencies"
                   placeholder="Currency"
@@ -405,7 +405,7 @@
 
         <div class="field mb-3">
           <label for="batch-flag">Flag</label>
-          <Dropdown
+          <Select
             id="batch-flag"
             v-model="batchEdit.flag"
             :options="['*', '!']"
@@ -488,6 +488,8 @@ import ProgressBar from 'primevue/progressbar';
 import Divider from 'primevue/divider';
 import Toast from 'primevue/toast';
 import Tag from 'primevue/tag';
+import DatePicker from 'primevue/datepicker';
+import Select from 'primevue/select';
 
 // API base URL - change this to match your FastAPI server
 const API_BASE_URL = 'http://localhost:8000/api';
@@ -498,7 +500,9 @@ export default {
     ProgressBar,
     Divider,
     Toast,
-    Tag
+    Tag,
+    DatePicker,
+    Select
   },
   setup() {
     const toast = useToast();
