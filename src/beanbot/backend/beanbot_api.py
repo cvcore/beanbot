@@ -7,16 +7,13 @@ import logging
 from fastapi import Body, FastAPI, HTTPException, Depends, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from beancount.core import data as d
-
-from beanbot.backend.predictor import get_predictor_singleton
-from beanbot.common.configs import BeanbotConfig
-from beanbot.data.pydantic_serialization import Amount, Transaction
+from beanbot.data.pydantic_serialization import Transaction
 from beanbot.data.container import (
     _BEANBOT_LINENO_RANGE,
     _BEANBOT_UUID,
     TransactionsContainer,
 )
+from beancount.core.number import MISSING
 from beanbot.helper import logger
 
 # Import custom modules
@@ -63,7 +60,6 @@ async def startup_event():
         transactions_container = TransactionsContainer.load_from_file(
             BEANCOUNT_FILE_PATH, no_interpolation=NO_INTERPOLATION
         )
-        BeanbotConfig.get_global().parse_file(BEANCOUNT_FILE_PATH)
         logger.info(f"Loaded {len(transactions_container.entries)} transactions")
     except Exception as e:
         logger.error(f"Error loading Beancount file: {e}", exc_info=True)
@@ -104,14 +100,12 @@ def get_collection_metadata(entries: List[Transaction]) -> TransactionMetadata:
             tags.update(entry.tags)
             for posting in entry.postings:
                 accounts.add(posting.account)
-                if (
-                    isinstance(posting.units, Amount)
-                    and posting.units.currency is not None
-                ):
+                if posting.units is not MISSING:
                     currencies.add(posting.units.currency)
                 if (
-                    isinstance(posting.price, Amount)
-                    and posting.price.currency is not None
+                    posting.price
+                    and posting.price is not MISSING
+                    and posting.price.currency
                 ):
                     currencies.add(posting.price.currency)
 
@@ -134,8 +128,9 @@ async def get_transactions(
     narration: Optional[str] = None,
     tag: Optional[str] = None,
     currency: Optional[str] = None,
+    flag: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=1000),
 ):
     """
     Get transactions with pagination and filtering.
@@ -148,6 +143,7 @@ async def get_transactions(
     - narration: Filter by narration (partial match)
     - tag: Filter by tag (exact match)
     - currency: Filter by currency (exact match)
+    - flag: Filter by transaction flag (exact match)
     - page: Page number (1-based)
     - page_size: Number of items per page
     """
@@ -199,19 +195,20 @@ async def get_transactions(
             for entry in filtered_entries:
                 has_currency = False
                 for posting in entry.postings:
-                    if (
-                        isinstance(posting.units, Amount)
-                        and posting.units.currency == currency
-                        or (
-                            isinstance(posting.price, Amount)
-                            and posting.price.currency == currency
-                        )
+                    if posting.units.currency == currency or (
+                        posting.price and posting.price.currency == currency
                     ):
                         has_currency = True
                         break
                 if has_currency:
                     currency_entries.append(entry)
             filtered_entries = currency_entries
+
+        # Filter by flag
+        if flag is not None:
+            filtered_entries = [
+                entry for entry in filtered_entries if entry.flag == flag
+            ]
 
         # Sort by date (newest first)
         filtered_entries.sort(key=lambda x: x.date, reverse=True)
@@ -313,9 +310,13 @@ async def get_currencies(container: TransactionsContainer = Depends(get_containe
         currencies = set()
         for entry in container.entries:
             for posting in entry.postings:
-                if isinstance(posting.units, Amount):
+                if posting.units and posting.units is not MISSING:
                     currencies.add(posting.units.currency)
-                if isinstance(posting.price, Amount):
+                if (
+                    posting.price
+                    and posting.price is not MISSING
+                    and posting.price.currency
+                ):
                     currencies.add(posting.price.currency)
 
         currencies.discard(None)
@@ -437,119 +438,6 @@ async def save_transactions(container: TransactionsContainer = Depends(get_conta
         logger.error(f"Error saving transactions: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Error saving transactions: {str(e)}"
-        )
-
-
-@app.post("/api/reload", status_code=200)
-async def reload_transactions():
-    """
-    Reload transactions from the Beancount file.
-
-    Returns:
-    - Success message
-    """
-    try:
-        global transactions_container
-
-        # Reload transactions from file
-        transactions_container = TransactionsContainer.load_from_file(
-            BEANCOUNT_FILE_PATH, no_interpolation=NO_INTERPOLATION
-        )
-        BeanbotConfig.get_global().parse_file(BEANCOUNT_FILE_PATH)
-
-        logger.info(
-            f"Reloaded {len(transactions_container.entries)} transactions from file"
-        )
-
-        return {
-            "message": "Transactions reloaded successfully",
-            "count": len(transactions_container.entries),
-        }
-
-    except Exception as e:
-        logger.error(f"Error reloading transactions: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Error reloading transactions: {str(e)}"
-        )
-
-
-@app.post("/api/train", status_code=200)
-async def train_classifier(container: TransactionsContainer = Depends(get_container)):
-    """
-    Train the classifier on the transactions in the container.
-
-    Returns:
-    - Success message
-    """
-    try:
-        transactions = container.get_beancount_entries()
-        transactions_reviewed = [
-            t
-            for t in transactions
-            if isinstance(t, d.Transaction)
-            and not ("_new_dt" in t.tags or "_new_map" in t.tags)
-        ]
-        predictor = get_predictor_singleton(container.options_map)
-        predictor.train(transactions_reviewed)
-
-        if MODEL_PATH := os.environ.get("BEANBOT_MODEL_PATH"):
-            logger.info(f"Saving model to {MODEL_PATH}")
-            predictor.save_model(MODEL_PATH)
-
-        return {"message": "Classifier trained successfully"}
-
-    except Exception as e:
-        logger.error(f"Error training classifier: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Error training classifier: {str(e)}"
-        )
-
-
-@app.post("/api/predict", status_code=200)
-async def predict_counter_accounts(
-    transaction_ids: List[str] = Body(...),
-    container: TransactionsContainer = Depends(get_container),
-):
-    """
-    Predict counter accounts for given transaction IDs.
-
-    Parameters:
-    - transaction_ids: List of transaction IDs to predict counter accounts for
-
-    Returns:
-    - Dictionary mapping transaction IDs to their predicted counter accounts
-    """
-    try:
-        # Get the transactions from the container
-        transactions = []
-        for tx_id in transaction_ids:
-            try:
-                tx = container.get_entry_by_id(tx_id)
-                transactions.append(tx.to_beancount())
-            except KeyError:
-                raise HTTPException(
-                    status_code=404, detail=f"Transaction with ID {tx_id} not found"
-                )
-
-        # Get the predictor singleton and make predictions
-        predictor = get_predictor_singleton(container.options_map)
-        accounts, scores = zip(*predictor.predict_accounts(transactions))
-        accounts = list(accounts)
-        scores = [float(score) for score in scores]
-
-        return {
-            "message": "Predictions completed successfully",
-            "predictions": list(accounts),
-            "scores": scores,
-        }
-
-    except HTTPException:
-        # Re-raise HTTP exceptions
-        raise
-    except Exception as e:
-        logger.error(f"Error predicting counter accounts: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Error predicting counter accounts: {str(e)}"
         )
 
 

@@ -40,7 +40,7 @@
       </div>
 
       <div class="grid mt-2">
-        <div class="col-12 md:col-4">
+        <div class="col-12 md:col-3">
           <DatePicker
             v-model="filters.fromDate"
             dateFormat="yy-mm-dd"
@@ -50,7 +50,7 @@
             :showClear="true"
           />
         </div>
-        <div class="col-12 md:col-4">
+        <div class="col-12 md:col-3">
           <DatePicker
             v-model="filters.toDate"
             dateFormat="yy-mm-dd"
@@ -60,11 +60,21 @@
             :showClear="true"
           />
         </div>
-        <div class="col-12 md:col-4">
+        <div class="col-12 md:col-3">
           <Select
             v-model="filters.currency"
             :options="availableCurrencies"
             placeholder="Filter by Currency"
+            class="w-full"
+            @change="loadTransactions"
+            :showClear="true"
+          />
+        </div>
+        <div class="col-12 md:col-3">
+          <Select
+            v-model="filters.flag"
+            :options="availableFlags"
+            placeholder="Filter by Flag"
             class="w-full"
             @change="loadTransactions"
             :showClear="true"
@@ -263,7 +273,7 @@
           v-model:rows="pageSize"
           :totalRecords="totalItems"
           v-model:first="first"
-          :rowsPerPageOptions="[10, 20, 50, 100]"
+          :rowsPerPageOptions="[10, 50, 100, 500, 1000]"
           @page="onPageChange"
         />
       </div>
@@ -513,6 +523,7 @@ export default {
     const availableAccounts = ref([]);
     const availableTags = ref([]);
     const availableCurrencies = ref([]);
+    const availableFlags = ref(['*', '!', '']);  // Add available flags array
     const loading = ref(false);
     const savingAll = ref(false);
     const reloading = ref(false);
@@ -548,7 +559,8 @@ export default {
       fromDate: null,
       toDate: null,
       tag: null,
-      currency: null
+      currency: null,
+      flag: null  // Add flag filter
     });
 
     // Computed properties
@@ -635,6 +647,7 @@ export default {
         }
         if (filters.tag) params.tag = filters.tag;
         if (filters.currency) params.currency = filters.currency;
+        if (filters.flag !== null) params.flag = filters.flag; // Add flag parameter to request
 
         const response = await axios.get(`${API_BASE_URL}/transactions`, { params });
 
@@ -1331,6 +1344,7 @@ export default {
       availableAccounts,
       availableTags,
       availableCurrencies,
+      availableFlags, // Return available flags to the template
       loading,
       savingAll,
       reloading,
