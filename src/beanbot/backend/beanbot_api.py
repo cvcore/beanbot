@@ -129,6 +129,8 @@ async def get_transactions(
     tag: Optional[str] = None,
     currency: Optional[str] = None,
     flag: Optional[str] = None,
+    sort_field: Optional[str] = None,
+    sort_order: Optional[str] = "desc",
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=1000),
 ):
@@ -144,6 +146,8 @@ async def get_transactions(
     - tag: Filter by tag (exact match)
     - currency: Filter by currency (exact match)
     - flag: Filter by transaction flag (exact match)
+    - sort_field: Field to sort by
+    - sort_order: Sort order ('asc' or 'desc')
     - page: Page number (1-based)
     - page_size: Number of items per page
     """
@@ -210,8 +214,53 @@ async def get_transactions(
                 entry for entry in filtered_entries if entry.flag == flag
             ]
 
-        # Sort by date (newest first)
-        filtered_entries.sort(key=lambda x: x.date, reverse=True)
+        # Apply sorting
+        if sort_field:
+            reverse = sort_order.lower() != "asc"
+
+            def get_sort_value(entry):
+                # Handle special sort fields with dot notation (e.g., postings.0.account)
+                if "." in sort_field:
+                    parts = sort_field.split(".")
+                    value = entry
+
+                    for part in parts:
+                        if isinstance(value, list) and part.isdigit():
+                            # Handle list index access
+                            idx = int(part)
+                            if 0 <= idx < len(value):
+                                value = value[idx]
+                            else:
+                                return None  # Index out of bounds
+                        elif hasattr(value, part):
+                            # Handle attribute access
+                            value = getattr(value, part)
+                        elif isinstance(value, dict) and part in value:
+                            # Handle dictionary access
+                            value = value[part]
+                        else:
+                            return None  # Attribute not found
+
+                    return value
+                else:
+                    # Direct attribute access
+                    return getattr(entry, sort_field, None)
+
+            try:
+                filtered_entries.sort(
+                    key=lambda entry: (
+                        get_sort_value(entry) is None,
+                        get_sort_value(entry),
+                    ),
+                    reverse=reverse,
+                )
+            except Exception as sort_error:
+                logger.error(f"Error sorting entries: {sort_error}")
+                # Fall back to date sorting if custom sort fails
+                filtered_entries.sort(key=lambda x: x.date, reverse=True)
+        else:
+            # Default sort by date (newest first)
+            filtered_entries.sort(key=lambda x: x.date, reverse=True)
 
         # Calculate pagination
         total_count = len(filtered_entries)

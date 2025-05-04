@@ -128,7 +128,8 @@
         @sort="onSort"
         :metaKeySelection="false"
         :selectionMode="'multiple'"
-        rangeMode
+        v-model:sortField="sortField"
+        v-model:sortOrder="sortOrder"
       >
         <!-- Selection column -->
         <Column selectionMode="multiple" headerStyle="width: 3rem" />
@@ -273,7 +274,7 @@
           v-model:rows="pageSize"
           :totalRecords="totalItems"
           v-model:first="first"
-          :rowsPerPageOptions="[10, 50, 100, 500, 1000]"
+          :rowsPerPageOptions="[10, 20, 50, 100, 500]"
           @page="onPageChange"
         />
       </div>
@@ -563,6 +564,10 @@ export default {
       flag: null  // Add flag filter
     });
 
+    // Add sorting state
+    const sortField = ref(null);
+    const sortOrder = ref(null);
+
     // Computed properties
     const selectedTransactions = computed(() => {
       console.log('Computing selectedTransactions, count:', selectedRows.value.length);
@@ -649,6 +654,18 @@ export default {
         if (filters.currency) params.currency = filters.currency;
         if (filters.flag !== null) params.flag = filters.flag; // Add flag parameter to request
 
+        // Add sort parameters if defined
+        if (sortField.value) {
+          // Map frontend fields to backend fields where needed
+          let backendSortField = sortField.value;
+          if (backendSortField === '_bookedAccount') backendSortField = 'postings.0.account';
+          else if (backendSortField === '_counterAccount') backendSortField = 'postings.1.account';
+          else if (backendSortField === '_bookedAmount') backendSortField = 'postings.0.units.number';
+
+          params.sort_field = backendSortField;
+          params.sort_order = sortOrder.value === 1 ? 'asc' : 'desc';
+        }
+
         const response = await axios.get(`${API_BASE_URL}/transactions`, { params });
 
         // Update state
@@ -692,6 +709,11 @@ export default {
       Object.keys(filters).forEach(key => {
         filters[key] = null;
       });
+
+      // Reset sorting as well
+      sortField.value = null;
+      sortOrder.value = null;
+
       loadTransactions();
     };
 
@@ -1023,65 +1045,14 @@ export default {
       return 'MULTIPLE';
     };
 
-    // Custom sort handler
+    // Custom sort handler - simplified to just reload data
     const onSort = (event) => {
-      const { field, order } = event;
-      console.log('Sorting by field:', field, 'order:', order);
+      console.log('Sorting event:', event);
+      console.log('Sorting by field:', sortField.value, 'order:', sortOrder.value);
 
-      // Clone the array to avoid reactivity issues
-      const sortedData = [...transactions.value];
-
-      sortedData.sort((a, b) => {
-        let valueA, valueB;
-
-        // Handle different field types
-        if (field === 'date') {
-          valueA = new Date(a[field] || '');
-          valueB = new Date(b[field] || '');
-          return (valueA - valueB) * order;
-        }
-        else if (field === '_bookedAmount') {
-          // Extract numeric values from the booked amount
-          valueA = a.postings && a.postings.length > 0 && a.postings[0].units && a.postings[0].units.number
-            ? parseFloat(a.postings[0].units.number) || 0
-            : 0;
-
-          valueB = b.postings && b.postings.length > 0 && b.postings[0].units && b.postings[0].units.number
-            ? parseFloat(b.postings[0].units.number) || 0
-            : 0;
-
-          return (valueA - valueB) * order;
-        }
-        else if (field === '_bookedAccount') {
-          valueA = a.postings && a.postings.length > 0 ? a.postings[0].account || '' : '';
-          valueB = b.postings && b.postings.length > 0 ? b.postings[0].account || '' : '';
-          return valueA.localeCompare(valueB) * order;
-        }
-        else if (field === '_counterAccount') {
-          valueA = a.postings && a.postings.length > 1 ? a.postings[1].account || '' : '';
-          valueB = b.postings && b.postings.length > 1 ? b.postings[1].account || '' : '';
-          return valueA.localeCompare(valueB) * order;
-        }
-        else if (field === 'tags') {
-          valueA = (a.tags || []).join(',');
-          valueB = (b.tags || []).join(',');
-          return valueA.localeCompare(valueB) * order;
-        }
-        else {
-          // Default string comparison for other fields
-          valueA = a[field] || '';
-          valueB = b[field] || '';
-
-          if (typeof valueA === 'string' && typeof valueB === 'string') {
-            return valueA.localeCompare(valueB) * order;
-          } else {
-            return ((valueA > valueB) ? 1 : -1) * order;
-          }
-        }
-      });
-
-      // Update the transactions with the sorted data
-      transactions.value = sortedData;
+      // No need to manually update sortField/sortOrder as they're bound via v-model
+      // Just reload data with current sorting state
+      loadTransactions();
     };
 
     // New methods for updating booked account and counter account
@@ -1365,6 +1336,8 @@ export default {
       selectedRows,
       filteredAccounts,
       predictedTransactions,
+      sortField,
+      sortOrder,
 
       // Computed
       selectedTransactions,
