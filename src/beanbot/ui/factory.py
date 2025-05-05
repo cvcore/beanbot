@@ -10,7 +10,7 @@ from beanbot.data.entries import MutableEntriesContainer
 from beanbot.ops import extractor
 
 
-def _setter_fn_new_prediction(old_tags: set, col_change: bool) -> set:
+def _setter_fn_new_prediction(old_tags: set, col_change: bool) -> frozenset:
     """Set the new prediction tags.
     Arguments:
         old_tags (set): the old tags
@@ -47,6 +47,10 @@ def _setter_fn_pred_account(
     raise ValueError(
         f"Could not find a category account in the postings: {old_postings}"
     )
+
+
+def _setter_fn_tags(old_tags: set, col_change: str) -> frozenset:
+    return frozenset(set(col_change.split(",")))
 
 
 class BeanbotDataEditorFactory:
