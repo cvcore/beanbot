@@ -130,6 +130,8 @@
         :selectionMode="'multiple'"
         v-model:sortField="sortField"
         v-model:sortOrder="sortOrder"
+        resizableColumns
+        columnResizeMode="fit"
       >
         <!-- Selection column -->
         <Column selectionMode="multiple" headerStyle="width: 3rem" />
@@ -140,7 +142,7 @@
               v-model="slotProps.data.flag"
               :options="['*', '!']"
               optionLabel=""
-              class="w-12"
+              class="w-5"
             />
           </template>
         </Column>
@@ -151,7 +153,7 @@
               v-model="slotProps.data.date"
               dateFormat="yy-mm-dd"
               placeholder="Select date"
-              class="w-full"
+              class="w-5"
             />
           </template>
         </Column>
@@ -489,7 +491,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import axios from 'axios';
 import _ from 'lodash';
@@ -567,6 +569,78 @@ export default {
     // Add sorting state
     const sortField = ref(null);
     const sortOrder = ref(null);
+
+    // Local storage key for persisting state
+    const STORAGE_KEY = 'beanbot_editor_state';
+
+    // Save state to localStorage
+    const saveStateToLocalStorage = () => {
+      const stateToSave = {
+        filters: _.cloneDeep(filters),
+        pagination: {
+          pageSize: pageSize.value,
+          first: first.value
+        },
+        sorting: {
+          field: sortField.value,
+          order: sortOrder.value
+        }
+      };
+
+      // Convert Date objects to ISO strings for localStorage
+      if (stateToSave.filters.fromDate instanceof Date) {
+        stateToSave.filters.fromDate = stateToSave.filters.fromDate.toISOString();
+      }
+      if (stateToSave.filters.toDate instanceof Date) {
+        stateToSave.filters.toDate = stateToSave.filters.toDate.toISOString();
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+      console.log('State saved to localStorage');
+    };
+
+    // Load state from localStorage
+    const loadStateFromLocalStorage = () => {
+      try {
+        const savedState = localStorage.getItem(STORAGE_KEY);
+        if (savedState) {
+          const parsedState = JSON.parse(savedState);
+
+          // Restore filters
+          if (parsedState.filters) {
+            // Convert ISO date strings back to Date objects
+            if (parsedState.filters.fromDate) {
+              parsedState.filters.fromDate = new Date(parsedState.filters.fromDate);
+            }
+            if (parsedState.filters.toDate) {
+              parsedState.filters.toDate = new Date(parsedState.filters.toDate);
+            }
+
+            Object.keys(parsedState.filters).forEach(key => {
+              filters[key] = parsedState.filters[key];
+            });
+          }
+
+          // Restore pagination
+          if (parsedState.pagination) {
+            pageSize.value = parsedState.pagination.pageSize || 20;
+            first.value = parsedState.pagination.first || 0;
+          }
+
+          // Restore sorting
+          if (parsedState.sorting) {
+            sortField.value = parsedState.sorting.field;
+            sortOrder.value = parsedState.sorting.order;
+          }
+
+          console.log('State loaded from localStorage');
+          return true;
+        }
+      } catch (error) {
+        console.error('Error loading state from localStorage:', error);
+      }
+      return false;
+    };
 
     // Computed properties
     const selectedTransactions = computed(() => {
@@ -704,7 +778,7 @@ export default {
       }
     };
 
-    // Reset all filters
+    // Reset all filters and clear localStorage
     const resetFilters = () => {
       Object.keys(filters).forEach(key => {
         filters[key] = null;
@@ -713,6 +787,9 @@ export default {
       // Reset sorting as well
       sortField.value = null;
       sortOrder.value = null;
+
+      // Clear saved state
+      localStorage.removeItem(STORAGE_KEY);
 
       loadTransactions();
     };
@@ -727,6 +804,7 @@ export default {
     const onPageChange = (event) => {
       first.value = event.first;
       pageSize.value = event.rows;
+      saveStateToLocalStorage(); // Save state after pagination change
       loadTransactions();
     };
 
@@ -969,7 +1047,7 @@ export default {
         toast.add({ severity: 'success', summary: 'Success', detail: 'All changes saved to disk', life: 3000 });
 
         // Reload transactions from file to reflect any backend changes
-        await axios.post(`${API_BASE_URL}/reload`);
+        // await axios.post(`${API_BASE_URL}/reload`);
 
         // Reload the transactions from server to reflect any backend changes
         await loadTransactions();
@@ -1050,8 +1128,7 @@ export default {
       console.log('Sorting event:', event);
       console.log('Sorting by field:', sortField.value, 'order:', sortOrder.value);
 
-      // No need to manually update sortField/sortOrder as they're bound via v-model
-      // Just reload data with current sorting state
+      saveStateToLocalStorage(); // Save state after sort change
       loadTransactions();
     };
 
@@ -1303,9 +1380,18 @@ export default {
       });
     };
 
+    // Watch for filter changes to save state
+    watch(() => _.cloneDeep(filters), () => {
+      saveStateToLocalStorage();
+    }, { deep: true });
+
     // Initialize
     onMounted(async () => {
       await loadReferenceData();
+
+      // Load saved state before fetching transactions
+      const stateLoaded = loadStateFromLocalStorage();
+
       await loadTransactions();
     });
 
