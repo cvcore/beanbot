@@ -9,7 +9,7 @@ from beanbot.classifier.meta_transaction_classifier import MetaTransactionClassi
 from beancount.core import data
 from beanbot.ops.filter import TransactionFilter, NotTransactionFilter
 from beanbot.file.saver import EntryFileSaver
-from beanbot.ops.dedup import Deduplicator
+from beanbot.ops.dedup import ChainedDeduplicator
 from beanbot.common.configs import BeanbotConfig
 from beancount.parser import printer
 
@@ -95,7 +95,7 @@ class BeanBotPredictionHook(ImporterHook):
         main_file = global_config["main-file"]
         _, _, options_map = load_file(main_file)
 
-        deduplicator = Deduplicator(
+        deduplicator = ChainedDeduplicator(
             window_days_head=global_config["dedup-window-days"],
             window_days_tail=global_config["dedup-window-days"],
             max_date_difference=global_config["dedup-window-days"],

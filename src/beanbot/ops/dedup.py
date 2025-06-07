@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Any, Optional, Tuple, List
+from typing import Optional, Tuple, List
 from beancount.core.data import (
     iter_entry_dates,
     Directive,
@@ -21,7 +21,7 @@ from beanbot.ops.extractor import TransactionRecordSourceAccountExtractor
 class BaseDeduplicator(object):
     """Base class for deduplicators. Currently only implement deduplication for transactions."""
 
-    def __init__(self, window_days_head, window_days_tail) -> None:
+    def __init__(self, window_days_head: int, window_days_tail: int) -> None:
         self._window_days_head = window_days_head
         self._window_days_tail = window_days_tail
 
@@ -30,7 +30,11 @@ class BaseDeduplicator(object):
         raise NotImplementedError()
 
     def _find_duplicated_pairs(
-        self, entries, imported_entries, window_days_head=0, window_days_tail=0
+        self,
+        entries: Entries,
+        imported_entries: Entries,
+        window_days_head: int = 0,
+        window_days_tail: int = 0,
     ) -> List[Tuple[Directive, Directive]]:
         """Find duplicated pairs of entries. Returns a list of (entry, imported_entry) pairs which forms a duplication.
         This method tries to find duplicated entries in `imported_entries` by comparing them with entries in `entries`,
@@ -74,10 +78,21 @@ class BaseDeduplicator(object):
 class InternalTransferDeduplicator(BaseDeduplicator):
     """Deduplicator that removes all internal transfers from the imported entries"""
 
-    def __init__(self, window_days_head, window_days_tail, max_date_difference) -> None:
+    def __init__(
+        self,
+        window_days_head: int,
+        window_days_tail: int,
+        max_date_difference: int,
+        internal_account_regex: Optional[str] = None,
+    ) -> None:
         super().__init__(window_days_head, window_days_tail)
         self._max_date_difference = max_date_difference
-        self._re_internal_account = re.compile(r"^(Liabilities:Credit|Assets:Checking)")
+        if internal_account_regex is not None:
+            self._re_internal_account = re.compile(internal_account_regex)
+        else:
+            self._re_internal_account = re.compile(
+                r"^(Liabilities:Credit|Assets:Checking)"
+            )
 
     def _is_internal_transfer(
         self, entry: Transaction, imported_entry: Transaction, max_date_difference: int
@@ -151,29 +166,31 @@ class InternalTransferDeduplicator(BaseDeduplicator):
         return False
 
 
-def _comparator(field_value_0: Any, field_value_1: Any, field_key: str) -> bool:
-    if field_key == "postings":
-        field_value_0: Postings
-        field_value_1: Postings
+# def _comparator(field_value_0: Any, field_value_1: Any, field_key: str) -> bool:
+#     if field_key == "postings":
+#         field_value_0: Postings
+#         field_value_1: Postings
 
-        if (
-            len(field_value_0) > 0
-            and len(field_value_1) > 0
-            and field_value_0[0].account == field_value_1[0].account
-            and field_value_0[0].units == field_value_1[0].units
-        ):
-            return True
+#         if (
+#             len(field_value_0) > 0
+#             and len(field_value_1) > 0
+#             and field_value_0[0].account == field_value_1[0].account
+#             and field_value_0[0].units == field_value_1[0].units
+#         ):
+#             return True
 
-        return False
+#         return False
 
-    # Handle the case where we have mixed input of None and empty string
-    field_value_0 = "" if field_value_0 is None else field_value_0
-    field_value_1 = "" if field_value_1 is None else field_value_1
+#     # Handle the case where we have mixed input of None and empty string
+#     field_value_0 = "" if field_value_0 is None else field_value_0
+#     field_value_1 = "" if field_value_1 is None else field_value_1
 
-    return field_value_0 == field_value_1
+#     return field_value_0 == field_value_1
 
 
 class SimilarEntryDeduplicator(BaseDeduplicator):
+    """Deduplicator that removes existing entries from the imported entries"""
+
     def _compare_postings(
         self, postings: Postings, imported_postings: Postings
     ) -> bool:
@@ -241,7 +258,7 @@ class SimilarEntryDeduplicator(BaseDeduplicator):
         return True
 
 
-class Deduplicator:
+class ChainedDeduplicator:
     def __init__(self, window_days_head, window_days_tail, max_date_difference) -> None:
         """Initialize the deduplicator with a list of deduplicators. The deduplicators are applied in the order they are given."""
 

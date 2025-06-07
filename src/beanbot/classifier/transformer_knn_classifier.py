@@ -32,7 +32,7 @@ class TransformerKNNAccountClassifier(AbstractTransactionClassifier):
         return self._classifier.is_fitted
 
     def load_model(self, model_path: str):
-        self._classifier.load(model_path)
+        self._classifier = TransformerKNNClassifier.load(model_path)
 
     def save_model(self, model_path: str):
         self._classifier.save(model_path)
