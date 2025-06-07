@@ -1,0 +1,24 @@
+[project]
+name = "beanbot"
+dynamic = ["version"]
+description = "Beanbot is a library for automating accounting with Beancount."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "beancount>=3.1.0",
+]
+authors = [
+    { name = "Chengxin Wang", email = "w@hxdl.org" },
+]
+packages = [{ include = "beanbot", from = "src" }]
+
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/beanbot/_version.py"
