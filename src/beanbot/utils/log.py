@@ -30,7 +30,7 @@ def setup_logger(name: str = "beanbot", level: int = logging.INFO) -> logging.Lo
         os.makedirs("logs")
 
     # Create file handler
-    log_file = f'logs/beanbot_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log'
+    log_file = f"logs/beanbot_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
     file_handler = logging.FileHandler(log_file)
 
     # Create stream handler
