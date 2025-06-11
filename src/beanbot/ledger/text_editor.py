@@ -24,17 +24,19 @@ class ChangeSet:
 
     Attributes:
         type: The type of change.
+
         position: The position of the change.
-            For INSERT type, it should be an integer representing the position to insert the content.
-            For DELETE and REPLACE types, it should be a tuple of two integers representing the range to delete or replace.
-            For APPEND type, it should be None, as appending is only supported at the end of the file.
+            For `INSERT` type, it should be an integer representing the position to insert the content.
+            For `DELETE` and `REPLACE` types, it should be a tuple of two integers representing the range to delete or replace.
+            For `APPEND` type, it should be None, as appending is only supported at the end of the file.
 
             The line numbers are 0-indexed. When the specified position is negative,
-            it is interpreted as a relative position from the end of the file:
-            e.g. (pos, -1) means every line from pos to the end of the file, inclusive;
+            it is interpreted as a relative position from the end of the file, for example:
+            (pos, -1) means every line from pos to the end of the file, inclusive;
             (pos, -2) means every line from pos to the second last line, etc.
+
         content: The content to be inserted, replaced, or appended.
-            This attribute is required for INSERT, REPLACE, and APPEND types.
+            This attribute is required for `INSERT`, `REPLACE`, and `APPEND` types.
     """
 
     type: ChangeType
