@@ -25,5 +25,6 @@ version-file = "src/beanbot/_version.py"
 
 [dependency-groups]
 dev = [
+    "ipython>=9.3.0",
     "pytest>=8.4.0",
 ]
