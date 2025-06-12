@@ -6,6 +6,7 @@ from collections import defaultdict
 from copy import deepcopy
 
 from beancount import Directive, load_file
+from beancount.parser.booking import book
 from beancount.parser.printer import EntryPrinter
 
 from beanbot.data.hashing import stable_hash
@@ -44,7 +45,11 @@ class Ledger:
 
         Returns:
             The ID of the newly added entry.
+        Raises:
+            AssertionError: If the entry is not a valid Beancount directive.
         """
+        entry = self._book_entry(entry)
+
         entry_id, _ = self._get_entry_id(entry, handle_collision=True)
         self._new_entries[entry_id] = entry
         return entry_id
@@ -58,7 +63,7 @@ class Ledger:
 
         if entry_id in self._existing_entries:
             found = True
-            entry = self._existing_entries.pop(entry_id)
+            entry = self._existing_entries[entry_id]
             self._deleted_entries[entry_id] = entry
 
         if entry_id in self._new_entries:
@@ -83,6 +88,7 @@ class Ledger:
             If there is no entry found with `entry_id`, returns None.
             Otherwise, returns the new ID calculated for the new entry.
         """
+        entry_new = self._book_entry(entry_new)
         if entry_id not in self._existing_entries:
             logger.warning(
                 "Attempted to replace non-existent entry with ID: %s", entry_id
@@ -238,9 +244,9 @@ class Ledger:
         if errors:
             logger.error("Errors occurred while loading the ledger: %s", errors)
 
-        self._options_map = options_map
-
         self._init_state()
+
+        self._options_map = options_map
 
         # Process entries
         for entry in entries:
@@ -295,6 +301,20 @@ class Ledger:
             hash_value = stable_hash(entry)
 
         return hash_value, modified
+
+    def _book_entry(self, entry) -> Directive:
+        """Book the entry to ensure it is free of floating legs.
+
+        Args:
+            entry: The Beancount directive to book.
+        Returns:
+            The entry after booking.
+        Raises:
+            AssertionError: If error is encountered during booking."""
+        entries, errors = book([entry], options_map=self._options_map)
+        assert len(entries) == 1, "Only one entry should be returned after booking."
+        assert not errors, "There should be no errors after booking the entry."
+        return entries[0]
 
     @property
     def dirty(self) -> bool:
