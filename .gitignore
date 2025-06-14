@@ -10,3 +10,4 @@ playground
 .vscode
 logs
 node_modules
+src/beanbot/_version.py
