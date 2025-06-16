@@ -2,84 +2,113 @@ plugin "beancount.plugins.implicit_prices"
 ;; configuration for beanbot
 
 2000-01-01 custom "beanbot-config" "fallback-transaction-file" "data/ledger/unknown_transactions.bean"
+  bbid: "c0"
 2000-01-01 custom "beanbot-config" "main-file" "data/ledger/main.bean"
+  bbid: "c1"
 2000-01-01 custom "beanbot-config" "regex-source-account" "((Liabilities:Credit)|(Assets:Checking))"
+  bbid: "c2"
 2000-01-01 custom "beanbot-config" "regex-category-account" "(Expenses|Income)"
+  bbid: "c3"
 2000-01-01 custom "beanbot-config" "dedup-window-days" "2"
+  bbid: "c4"
 
 ;; Sample accounts
 
 2000-01-01 open Assets:Checking:SomeBank
+  bbid: "1"
 2000-01-01 open Expenses:Others
+  bbid: "2"
 2000-01-01 open Expenses:Utilities:Electricity
+  bbid: "3"
 2000-01-01 open Expenses:Utilities:Internet
+  bbid: "4"
 2000-01-01 open Income:Company
+  bbid: "5"
 2000-01-01 open Expenses:Housing
+  bbid: "6"
 2000-01-01 open Expenses:Insurance
+  bbid: "7"
 2000-01-01 open Expenses:Subscription
+  bbid: "8"
 
 ;; Sample expenses
 
 2018-12-28 * "Your Bank" "SMS costs"
+  bbid: "9"
   Assets:Checking:SomeBank       -2.27 EUR
   Expenses:Others
 
 2018-12-28 * "badenova AG & Co. KG" "Account ID: 123456" #_new_dt
+  bbid: "10"
   Assets:Checking:SomeBank     -670.00 EUR
   Expenses:Utilities:Electricity
 
 2018-12-30 * "The magic employer" "Your salary for December" #_new_map
+  bbid: "11"
   Assets:Checking:SomeBank   757129.45 EUR
   Income:Company
 
 2018-12-30 * "Your telecommunication company" "Internet costs for 12"
+  bbid: "12"
   Assets:Checking:SomeBank     -299.23 EUR
   Expenses:Utilities:Internet
 
 2018-12-31 * "Some random costs from the bank" "some random costs bla bla bla"
+  bbid: "13"
   Assets:Checking:SomeBank      -10.58 EUR
   Expenses:Others
 
 2019-01-04 * "PayPal (Europe) S.a.r.l. et Cie., S.C.A." "Oh app store itunes aaa"
+  bbid: "14"
   Assets:Checking:SomeBank      -19.99 EUR
   Expenses:Subscription
 
 2020-12-30 * "Your telecommunication company" "Internet costs for 12"
+  bbid: "15"
   Assets:Checking:SomeBank     -299.23 EUR
   Expenses:Utilities:Internet
 
 2020-12-31 * "Some random costs from the bank" "some random costs bla bla bla"
+  bbid: "16"
   Assets:Checking:SomeBank      -10.58 EUR
   Expenses:Others
 
 2021-01-04 * "PayPal (Europe) S.a.r.l. et Cie., S.C.A." "Oh app store itunes aaa"
+  bbid: "17"
   Assets:Checking:SomeBank      -19.99 EUR
   Expenses:Subscription
 
 2021-01-06 * "Insurance at some company" "Insurance for january"
+  bbid: "18"
   Assets:Checking:SomeBank    -1469.57 EUR
   Expenses:Insurance
 
 2021-01-08 * "Your rent for this month" "Address: earth 01"
+  bbid: "19"
   Assets:Checking:SomeBank    -5100.00 EUR
   Expenses:Housing
 
 2019-01-06 * "Insurance at some company" "Insurance for january"
+  bbid: "20"
   Assets:Checking:SomeBank    -1469.57 EUR
   Expenses:Insurance
 
 2019-01-08 * "Your rent for this month" "Address: earth 01"
+  bbid: "21"
   Assets:Checking:SomeBank    -5100.00 EUR
   Expenses:Housing
 
 2020-12-28 * "Your Bank" "SMS costs"
+  bbid: "22"
   Assets:Checking:SomeBank       -2.27 EUR
   Expenses:Others
 
 2020-12-28 * "badenova AG & Co. KG" "Account ID: 123456"
+  bbid: "23"
   Assets:Checking:SomeBank     -670.00 EUR
   Expenses:Utilities:Electricity
 
 2020-12-30 * "The magic employer" "Your salary for December 2020"
+  bbid: "24"
   Assets:Checking:SomeBank  7571291.45 EUR
   Income:Company

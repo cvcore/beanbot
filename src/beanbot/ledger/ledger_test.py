@@ -2,7 +2,6 @@
 
 import shutil
 import tempfile
-from copy import deepcopy
 from datetime import date
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -245,34 +244,6 @@ def test_save_no_changes(mock_text_editor, ledger):
     mock_text_editor.assert_not_called()
 
 
-def test_get_entry_id_no_collision(ledger, sample_transaction):
-    """Test entry ID generation without collision."""
-    entry_id, modified = ledger._get_entry_id(sample_transaction)
-
-    assert isinstance(entry_id, str)
-    assert not modified
-
-
-def test_get_entry_id_with_collision_handling(ledger, sample_transaction):
-    """Test entry ID generation with collision handling."""
-    # First, add the entry to existing entries to create a collision scenario
-    entry_id_1, _ = ledger._get_entry_id(sample_transaction)
-    ledger._existing_entries[entry_id_1] = sample_transaction
-
-    # Now try to get ID for the same entry with collision handling
-    sample_transaction_orig = deepcopy(sample_transaction)
-    assert sample_transaction_orig == sample_transaction
-    entry_id_2, modified = ledger._get_entry_id(
-        sample_transaction, handle_collision=True
-    )
-
-    # Should get a different ID and be marked as modified
-    assert entry_id_1 != entry_id_2
-    assert modified
-    assert sample_transaction_orig != sample_transaction
-    assert ledger.HASH_ATTR in sample_transaction.meta
-
-
 def test_extract_lineno_ranges(ledger):
     """Test extraction of line number ranges."""
     # Check that line number ranges were extracted
@@ -481,7 +452,7 @@ class TestLedgerIntegration:
             # Verify state after save
             assert not ledger.dirty
             assert new_entry_id in ledger._existing_entries
-            assert existing_entry_id not in ledger._existing_entries
+            assert new_entry_id == existing_entry_id
             assert len(ledger._changed_entries) == 0
             assert len(ledger._existing_entries) == initial_count
 

@@ -1,17 +1,15 @@
 """Provides in-memory representation of a Beancount ledger."""
 
 import os
-import random
 from collections import defaultdict
 from copy import deepcopy
 
 from beancount import Directive, load_file
-from beancount.parser.booking import book
 from beancount.parser.printer import EntryPrinter
 
-from beanbot.data.hashing import stable_hash
 from beanbot.ledger.text_editor import ChangeSet, ChangeType, TextEditor
 from beanbot.utils import logger
+from beanbot.utils.id_generator import IDGenerator
 
 
 class Ledger:
@@ -40,6 +38,8 @@ class Ledger:
         self._changed_entries = {}  # Maps existing entry IDs to new entries
         self._deleted_entries = {}  # Maps existing entry IDs to the original entries
 
+        self._id_generator = IDGenerator()
+
     def add(self, entry: Directive) -> str:
         """Add a new entry to the ledger.
 
@@ -48,9 +48,8 @@ class Ledger:
         Raises:
             AssertionError: If the entry is not a valid Beancount directive.
         """
-        entry = self._book_entry(entry)
 
-        entry_id, _ = self._get_entry_id(entry, handle_collision=True)
+        entry_id, _ = self._get_or_load_entry_id(entry)
         self._new_entries[entry_id] = entry
         return entry_id
 
@@ -74,6 +73,8 @@ class Ledger:
             found = True
             del self._changed_entries[entry_id]
 
+        self._id_generator.unregister(entry_id)
+
         if not found:
             logger.warning(
                 "Attempted to remove non-existent entry with ID: %s", entry_id
@@ -81,14 +82,13 @@ class Ledger:
 
         return found
 
-    def replace(self, entry_id: Directive, entry_new: Directive) -> str | None:
+    def replace(self, entry_id: str, entry_new: Directive) -> str | None:
         """Replace an existing entry with a new one.
 
         Returns:
             If there is no entry found with `entry_id`, returns None.
             Otherwise, returns the new ID calculated for the new entry.
         """
-        entry_new = self._book_entry(entry_new)
         if entry_id not in self._existing_entries:
             logger.warning(
                 "Attempted to replace non-existent entry with ID: %s", entry_id
@@ -96,9 +96,8 @@ class Ledger:
             return None
 
         self._changed_entries[entry_id] = entry_new
-        entry_new_id, _ = self._get_entry_id(entry_new, handle_collision=True)
 
-        return entry_new_id
+        return entry_id
 
     def save(self) -> None:
         """Persist the changes back to disk."""
@@ -123,11 +122,8 @@ class Ledger:
         self._new_entries.clear()
 
         # Update changed entries
-        for entry_id_old, entry in self._changed_entries.items():
-            entry_id_new, _ = self._get_entry_id(entry)
-            assert entry_id_new not in updated_entries
-            updated_entries[entry_id_new] = entry
-            del updated_entries[entry_id_old]
+        for entry_id, entry in self._changed_entries.items():
+            updated_entries[entry_id] = entry
         self._changed_entries.clear()
 
         # Remove deleted entries
@@ -235,7 +231,7 @@ class Ledger:
             )
 
     def load(self) -> None:
-        """Load the ledger from the main file."""
+        """Load the ledger from the main file. This will clear all unsaved changes in the ledger."""
 
         # TODO: consider locking the file to prevent concurrent modifications
         # TODO: record file version and check if it has changed during saving
@@ -252,69 +248,36 @@ class Ledger:
         for entry in entries:
             assert isinstance(entry, Directive), "All entries must be of type Directive"
 
-            entry_id, modified = self._get_entry_id(entry, handle_collision=False)
+            entry_original = deepcopy(entry)
+            entry_id, modified = self._get_or_load_entry_id(entry)
 
-            if entry_id in self._existing_entries:
-                # Handle hash collision by modifying the entry
-                logger.debug("Hash collision detected for entry: %s", entry_id)
-                entry_mod = deepcopy(entry)
-
-                entry_mod_id, modified = self._get_entry_id(
-                    entry_mod, handle_collision=True
-                )
-                assert modified, "Entry should be modified to resolve hash collision"
-
-                self._existing_entries[entry_mod_id] = entry
-                self._changed_entries[entry_mod_id] = entry_mod
-
-            self._existing_entries[entry_id] = entry
+            self._existing_entries[entry_id] = entry_original
+            if modified:
+                # If the entry was modified to add ID attribute, we need to mark it as changed
+                self._changed_entries[entry_id] = entry
 
         # Extract line number ranges for existing entries
         self._extract_lineno_ranges()
 
-    def _get_entry_id(
-        self, entry: Directive, handle_collision: bool = False
-    ) -> tuple[str, bool]:
-        """Generate an id for a Beancount directive.
+    def _get_or_load_entry_id(self, entry: Directive) -> tuple[str, bool]:
+        """Get an ID for the entry.
 
         Args:
             entry: The Beancount directive to hash.
-            handle_collision: If True, will handle hash collisions by appending a random number.
 
         Returns:
             A hash value and a boolean indicating if the entry was modified to resolve a collision.
         """
-        hash_value = stable_hash(entry)
+        assert isinstance(entry, Directive), "Entry must be a Beancount directive"
 
-        if not handle_collision:
-            return hash_value, False
+        meta_bbid = entry.meta.get(self.HASH_ATTR, None)
+        if meta_bbid is not None:
+            self._id_generator.register(meta_bbid)
+            return meta_bbid, False
 
-        modified = False
-        while hash_value in self._existing_entries:
-            modified = True
-            entry.meta[self.HASH_ATTR] = "".join(
-                random.choices(
-                    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-                    k=3,
-                )
-            )
-            hash_value = stable_hash(entry)
-
-        return hash_value, modified
-
-    def _book_entry(self, entry) -> Directive:
-        """Book the entry to ensure it is free of floating legs.
-
-        Args:
-            entry: The Beancount directive to book.
-        Returns:
-            The entry after booking.
-        Raises:
-            AssertionError: If error is encountered during booking."""
-        entries, errors = book([entry], options_map=self._options_map)
-        assert len(entries) == 1, "Only one entry should be returned after booking."
-        assert not errors, "There should be no errors after booking the entry."
-        return entries[0]
+        new_id = self._id_generator.generate()
+        entry.meta[self.HASH_ATTR] = new_id
+        return new_id, True
 
     @property
     def dirty(self) -> bool:
