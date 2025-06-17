@@ -49,6 +49,12 @@ def fixture_main_file():
     return "data/ledger/main.bean"
 
 
+@pytest.fixture(name="main_file_noid")
+def fixture_main_file_noid():
+    """Fixture for the main beancount file path without bbid tags."""
+    return "data/ledger/main_noid.bean"
+
+
 @pytest.fixture(name="sample_transaction")
 def fixture_sample_transaction(main_file):
     """Fixture for a sample transaction."""
@@ -542,3 +548,77 @@ class TestLedgerIntegration:
 
             # Verify the total number of entries decreased by 1
             assert len(reloaded_entries) == initial_count - 1
+
+    def test_load_file_without_bbids(self, main_file_noid):
+        """Test loading a file without bbid tags automatically allocates IDs and marks dirty."""
+        ledger = Ledger(main_file_noid)
+
+        # Should be dirty because IDs were automatically allocated
+        assert ledger.dirty
+
+        # Should have existing entries
+        assert len(ledger._existing_entries) > 0
+
+        # All entries should have bbid metadata
+        for entry in ledger._changed_entries.values():
+            assert Ledger.HASH_ATTR in entry.meta
+            assert isinstance(entry.meta[Ledger.HASH_ATTR], str)
+            assert len(entry.meta[Ledger.HASH_ATTR]) > 0
+
+        # Changed entries should contain all entries (due to ID allocation)
+        assert len(ledger._changed_entries) == len(ledger._existing_entries)
+
+    def test_save_and_reload_preserves_allocated_ids(self, main_file_noid):
+        """Test that saving and reloading preserves allocated IDs and makes ledger clean."""
+        # Create a temporary copy of the file without IDs
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_file = Path(temp_dir) / "test_main_noid.bean"
+            shutil.copy2(main_file_noid, temp_file)
+
+            # Load the file (should be dirty due to ID allocation)
+            ledger = Ledger(str(temp_file))
+            assert ledger.dirty
+
+            initial_entry_count = len(ledger._existing_entries)
+
+            # Save the changes (this should add bbid metadata to the file)
+            ledger.save()
+
+            # After saving, should not be dirty
+            assert not ledger.dirty
+
+            # Reload the file
+            ledger_reloaded = Ledger(str(temp_file))
+
+            # After reload, should not be dirty (IDs are now in the file)
+            assert not ledger_reloaded.dirty
+
+            # Should have the same number of entries
+            assert len(ledger_reloaded._existing_entries) == initial_entry_count
+
+    def test_id_allocation_stability_across_multiple_loads(self, main_file_noid):
+        """Test that ID allocation is stable across multiple loads of the same file."""
+        # Create a temporary copy
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_file = Path(temp_dir) / "test_main_noid.bean"
+            shutil.copy2(main_file_noid, temp_file)
+
+            # First load and save
+            ledger1 = Ledger(str(temp_file))
+            first_load_ids = set(ledger1._existing_entries.keys())
+            ledger1.save()
+
+            # Second load (should not be dirty now)
+            ledger2 = Ledger(str(temp_file))
+            second_load_ids = set(ledger2._existing_entries.keys())
+
+            # IDs should be identical
+            assert first_load_ids == second_load_ids
+            assert not ledger2.dirty
+
+            # Third load to be extra sure
+            ledger3 = Ledger(str(temp_file))
+            third_load_ids = set(ledger3._existing_entries.keys())
+
+            assert first_load_ids == third_load_ids
+            assert not ledger3.dirty
