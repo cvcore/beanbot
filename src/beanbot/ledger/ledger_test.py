@@ -12,6 +12,7 @@ from beancount.core.data import Posting, Transaction
 from beancount.core.number import D
 from beancount.loader import load_file
 
+from beanbot.data.constants import METADATA_BBID
 from beanbot.ledger.ledger import Ledger
 
 
@@ -561,9 +562,9 @@ class TestLedgerIntegration:
 
         # All entries should have bbid metadata
         for entry in ledger._changed_entries.values():
-            assert Ledger.HASH_ATTR in entry.meta
-            assert isinstance(entry.meta[Ledger.HASH_ATTR], str)
-            assert len(entry.meta[Ledger.HASH_ATTR]) > 0
+            assert METADATA_BBID in entry.meta
+            assert isinstance(entry.meta[METADATA_BBID], str)
+            assert len(entry.meta[METADATA_BBID]) > 0
 
         # Changed entries should contain all entries (due to ID allocation)
         assert len(ledger._changed_entries) == len(ledger._existing_entries)

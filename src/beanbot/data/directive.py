@@ -18,6 +18,8 @@ from beancount.core.data import (
     Transaction,
 )
 
+from beanbot.data.constants import METADATA_BBID
+
 # Type variable for beancount directives
 T = TypeVar("T", bound=Directive)
 
@@ -102,6 +104,10 @@ class MutableDirective[T: Directive]:
         """Convert this mutable directive back to an immutable beancount directive."""
         updated_directive = deepcopy(self._directive)
         updated_directive._replace(**self._changes)
+        if updated_directive.meta is None:
+            updated_directive.meta = {}
+        if self._id is not None:
+            updated_directive.meta[METADATA_BBID] = self._id
         return updated_directive
 
     def __repr__(self) -> str:
@@ -112,6 +118,10 @@ class MutableDirective[T: Directive]:
     def dirty(self) -> bool:
         """Check if there are any changes made to this directive."""
         return bool(self._changes)
+
+    def reset(self) -> None:
+        """Reset the changes made to this directive."""
+        self._changes.clear()
 
 
 def get_source_file_path(directive: Directive) -> str | None:
