@@ -38,7 +38,7 @@ class Ledger:
         self._changed_entries = {}  # Maps existing entry IDs to new entries
         self._deleted_entries = {}  # Maps existing entry IDs to the original entries
 
-        self._id_generator = IDGenerator()
+        self.id_generator = IDGenerator()
 
     def add(self, entry: Directive) -> str:
         """Add a new entry to the ledger.
@@ -73,7 +73,7 @@ class Ledger:
             found = True
             del self._changed_entries[entry_id]
 
-        self._id_generator.unregister(entry_id)
+        self.id_generator.unregister(entry_id)
 
         if not found:
             logger.warning(
@@ -272,10 +272,10 @@ class Ledger:
 
         meta_bbid = entry.meta.get(self.HASH_ATTR, None)
         if meta_bbid is not None:
-            self._id_generator.register(meta_bbid)
+            self.id_generator.register(meta_bbid)
             return meta_bbid, False
 
-        new_id = self._id_generator.generate()
+        new_id = self.id_generator.generate()
         entry.meta[self.HASH_ATTR] = new_id
         return new_id, True
 
