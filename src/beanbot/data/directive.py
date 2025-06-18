@@ -43,16 +43,21 @@ class MutableDirective[T: Directive]:
         assert isinstance(directive, self._directive_type)
 
         # Use object.__setattr__ to avoid triggering our custom __setattr__
-        object.__setattr__(self, "_directive", directive)
-        object.__setattr__(self, "_id", id)
+        super().__setattr__("_directive", directive)
+        super().__setattr__("_id", id)
         if changes is None:
             changes = {}
-        object.__setattr__(self, "_changes", changes)
+        super().__setattr__("_changes", changes)
 
     @property
     def id(self) -> str | None:
         """Get the unique identifier for this directive."""
         return self._id
+
+    @id.setter
+    def id(self, value: str) -> None:
+        """Set the unique identifier for this directive."""
+        super().__setattr__("_id", value)
 
     @property
     def directive(self) -> T:
