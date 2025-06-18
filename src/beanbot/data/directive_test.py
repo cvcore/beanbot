@@ -33,24 +33,7 @@ from .directive import (
     MutablePrice,
     MutableQuery,
     MutableTransaction,
-    Session,
 )
-
-
-class MockSession(Session):
-    """Mock session for testing."""
-
-    def __init__(self):
-        self.changes = []
-        self.states = {}
-
-    def update_state(self, directive, state):
-        self.states[directive] = state
-
-
-@pytest.fixture(name="mock_session")
-def fixture_mock_session():
-    return MockSession()
 
 
 @pytest.fixture(name="sample_transaction")
@@ -192,22 +175,21 @@ def fixture_sample_commodity():
 
 
 class TestMutableTransaction:
-    def test_construction(self, sample_transaction, mock_session):
-        mutable = MutableTransaction(sample_transaction, mock_session, id="txn_1")
+    def test_construction(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction, id="txn_1")
         assert mutable.id == "txn_1"
         assert mutable.directive == sample_transaction
-        assert mutable.session == mock_session
         assert mutable.changes == {}
 
-    def test_attribute_access(self, sample_transaction, mock_session):
-        mutable = MutableTransaction(sample_transaction, mock_session)
+    def test_attribute_access(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
         assert mutable.date == date(2024, 1, 1)
         assert mutable.flag == "*"
         assert mutable.payee == "Test Payee"
         assert mutable.narration == "Test transaction"
 
-    def test_attribute_modification(self, sample_transaction, mock_session):
-        mutable = MutableTransaction(sample_transaction, mock_session)
+    def test_attribute_modification(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
         mutable.narration = "Modified narration"
         assert mutable.narration == "Modified narration"
         assert "narration" in mutable.changes
@@ -215,42 +197,42 @@ class TestMutableTransaction:
 
 
 class TestMutableOpen:
-    def test_construction(self, sample_open, mock_session):
-        mutable = MutableOpen(sample_open, mock_session, id="open_1")
+    def test_construction(self, sample_open):
+        mutable = MutableOpen(sample_open, id="open_1")
         assert mutable.id == "open_1"
         assert mutable.directive == sample_open
         assert mutable.account == "Assets:Cash"
 
-    def test_attribute_modification(self, sample_open, mock_session):
-        mutable = MutableOpen(sample_open, mock_session)
+    def test_attribute_modification(self, sample_open):
+        mutable = MutableOpen(sample_open)
         mutable.account = "Assets:Bank"
         assert mutable.account == "Assets:Bank"
         assert "account" in mutable.changes
 
 
 class TestMutableClose:
-    def test_construction(self, sample_close, mock_session):
-        mutable = MutableClose(sample_close, mock_session, id="close_1")
+    def test_construction(self, sample_close):
+        mutable = MutableClose(sample_close, id="close_1")
         assert mutable.id == "close_1"
         assert mutable.directive == sample_close
         assert mutable.account == "Assets:Cash"
 
-    def test_attribute_modification(self, sample_close, mock_session):
-        mutable = MutableClose(sample_close, mock_session)
+    def test_attribute_modification(self, sample_close):
+        mutable = MutableClose(sample_close)
         mutable.date = date(2024, 6, 30)
         assert mutable.date == date(2024, 6, 30)
         assert "date" in mutable.changes
 
 
 class TestMutableBalance:
-    def test_construction(self, sample_balance, mock_session):
-        mutable = MutableBalance(sample_balance, mock_session, id="balance_1")
+    def test_construction(self, sample_balance):
+        mutable = MutableBalance(sample_balance, id="balance_1")
         assert mutable.id == "balance_1"
         assert mutable.directive == sample_balance
         assert mutable.account == "Assets:Cash"
 
-    def test_attribute_modification(self, sample_balance, mock_session):
-        mutable = MutableBalance(sample_balance, mock_session)
+    def test_attribute_modification(self, sample_balance):
+        mutable = MutableBalance(sample_balance)
         new_amount = Amount(Decimal("2000"), "USD")
         mutable.amount = new_amount
         assert mutable.amount == new_amount
@@ -258,70 +240,70 @@ class TestMutableBalance:
 
 
 class TestMutablePad:
-    def test_construction(self, sample_pad, mock_session):
-        mutable = MutablePad(sample_pad, mock_session, id="pad_1")
+    def test_construction(self, sample_pad):
+        mutable = MutablePad(sample_pad, id="pad_1")
         assert mutable.id == "pad_1"
         assert mutable.directive == sample_pad
         assert mutable.account == "Assets:Cash"
 
-    def test_attribute_modification(self, sample_pad, mock_session):
-        mutable = MutablePad(sample_pad, mock_session)
+    def test_attribute_modification(self, sample_pad):
+        mutable = MutablePad(sample_pad)
         mutable.source_account = "Equity:Opening-Balance"
         assert mutable.source_account == "Equity:Opening-Balance"
         assert "source_account" in mutable.changes
 
 
 class TestMutableNote:
-    def test_construction(self, sample_note, mock_session):
-        mutable = MutableNote(sample_note, mock_session, id="note_1")
+    def test_construction(self, sample_note):
+        mutable = MutableNote(sample_note, id="note_1")
         assert mutable.id == "note_1"
         assert mutable.directive == sample_note
         assert mutable.comment == "Test note"
 
-    def test_attribute_modification(self, sample_note, mock_session):
-        mutable = MutableNote(sample_note, mock_session)
+    def test_attribute_modification(self, sample_note):
+        mutable = MutableNote(sample_note)
         mutable.comment = "Modified note"
         assert mutable.comment == "Modified note"
         assert "comment" in mutable.changes
 
 
 class TestMutableEvent:
-    def test_construction(self, sample_event, mock_session):
-        mutable = MutableEvent(sample_event, mock_session, id="event_1")
+    def test_construction(self, sample_event):
+        mutable = MutableEvent(sample_event, id="event_1")
         assert mutable.id == "event_1"
         assert mutable.directive == sample_event
         assert mutable.type == "location"
 
-    def test_attribute_modification(self, sample_event, mock_session):
-        mutable = MutableEvent(sample_event, mock_session)
+    def test_attribute_modification(self, sample_event):
+        mutable = MutableEvent(sample_event)
         mutable.description = "San Francisco"
         assert mutable.description == "San Francisco"
         assert "description" in mutable.changes
 
 
 class TestMutableQuery:
-    def test_construction(self, sample_query, mock_session):
-        mutable = MutableQuery(sample_query, mock_session, id="query_1")
+    def test_construction(self, sample_query):
+        mutable = MutableQuery(sample_query, id="query_1")
         assert mutable.id == "query_1"
         assert mutable.directive == sample_query
         assert mutable.name == "test_query"
 
-    def test_attribute_modification(self, sample_query, mock_session):
-        mutable = MutableQuery(sample_query, mock_session)
+    def test_attribute_modification(self, sample_query):
+        mutable = MutableQuery(sample_query)
         mutable.name = "modified_query"
         assert mutable.name == "modified_query"
         assert "name" in mutable.changes
 
 
 class TestMutablePrice:
-    def test_construction(self, sample_price, mock_session):
-        mutable = MutablePrice(sample_price, mock_session, id="price_1")
+    def test_construction(self, sample_price):
+        mutable = MutablePrice(sample_price, id="price_1")
         assert mutable.id == "price_1"
         assert mutable.directive == sample_price
         assert mutable.currency == "AAPL"
 
-    def test_attribute_modification(self, sample_price, mock_session):
-        mutable = MutablePrice(sample_price, mock_session)
+    def test_attribute_modification(self, sample_price):
+        mutable = MutablePrice(sample_price)
         new_amount = Amount(Decimal("155.00"), "USD")
         mutable.amount = new_amount
         assert mutable.amount == new_amount
@@ -329,60 +311,60 @@ class TestMutablePrice:
 
 
 class TestMutableDocument:
-    def test_construction(self, sample_document, mock_session):
-        mutable = MutableDocument(sample_document, mock_session, id="doc_1")
+    def test_construction(self, sample_document):
+        mutable = MutableDocument(sample_document, id="doc_1")
         assert mutable.id == "doc_1"
         assert mutable.directive == sample_document
         assert mutable.filename == "receipt.pdf"
 
-    def test_attribute_modification(self, sample_document, mock_session):
-        mutable = MutableDocument(sample_document, mock_session)
+    def test_attribute_modification(self, sample_document):
+        mutable = MutableDocument(sample_document)
         mutable.filename = "invoice.pdf"
         assert mutable.filename == "invoice.pdf"
         assert "filename" in mutable.changes
 
 
 class TestMutableCustom:
-    def test_construction(self, sample_custom, mock_session):
-        mutable = MutableCustom(sample_custom, mock_session, id="custom_1")
+    def test_construction(self, sample_custom):
+        mutable = MutableCustom(sample_custom, id="custom_1")
         assert mutable.id == "custom_1"
         assert mutable.directive == sample_custom
         assert mutable.type == "budget"
 
-    def test_attribute_modification(self, sample_custom, mock_session):
-        mutable = MutableCustom(sample_custom, mock_session)
+    def test_attribute_modification(self, sample_custom):
+        mutable = MutableCustom(sample_custom)
         mutable.type = "forecast"
         assert mutable.type == "forecast"
         assert "type" in mutable.changes
 
 
 class TestMutableCommodity:
-    def test_construction(self, sample_commodity, mock_session):
-        mutable = MutableCommodity(sample_commodity, mock_session, id="commodity_1")
+    def test_construction(self, sample_commodity):
+        mutable = MutableCommodity(sample_commodity, id="commodity_1")
         assert mutable.id == "commodity_1"
         assert mutable.directive == sample_commodity
         assert mutable.currency == "USD"
 
-    def test_attribute_modification(self, sample_commodity, mock_session):
-        mutable = MutableCommodity(sample_commodity, mock_session)
+    def test_attribute_modification(self, sample_commodity):
+        mutable = MutableCommodity(sample_commodity)
         mutable.currency = "EUR"
         assert mutable.currency == "EUR"
         assert "currency" in mutable.changes
 
 
 class TestMutableDirectiveBase:
-    def test_invalid_attribute_access(self, sample_transaction, mock_session):
-        mutable = MutableTransaction(sample_transaction, mock_session)
+    def test_invalid_attribute_access(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
         with pytest.raises(AttributeError):
             _ = mutable.nonexistent_attribute
 
-    def test_invalid_attribute_modification(self, sample_transaction, mock_session):
-        mutable = MutableTransaction(sample_transaction, mock_session)
+    def test_invalid_attribute_modification(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
         with pytest.raises(AttributeError):
             mutable.nonexistent_attribute = "value"
 
-    def test_revert_to_original_value(self, sample_transaction, mock_session):
-        mutable = MutableTransaction(sample_transaction, mock_session)
+    def test_revert_to_original_value(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
         original_narration = mutable.narration
 
         # Modify the attribute
@@ -393,17 +375,12 @@ class TestMutableDirectiveBase:
         mutable.narration = original_narration
         assert "narration" not in mutable.changes
 
-    def test_session_assignment_error(self, sample_transaction, mock_session):
-        mutable = MutableTransaction(sample_transaction, mock_session)
-        with pytest.raises(AttributeError, match="Forbidden: can't modify attribute"):
-            mutable.session = MockSession()
-
-    def test_directive_assignment_error(self, sample_transaction, mock_session):
-        mutable = MutableTransaction(sample_transaction, mock_session)
-        with pytest.raises(AttributeError, match="Forbidden: can't modify attribute"):
+    def test_directive_assignment_error(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
+        with pytest.raises(AttributeError, match="has no setter"):
             mutable.directive = sample_transaction
 
-    def test_changes_assignment_error(self, sample_transaction, mock_session):
-        mutable = MutableTransaction(sample_transaction, mock_session)
-        with pytest.raises(AttributeError, match="Forbidden: can't modify attribute"):
+    def test_changes_assignment_error(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
+        with pytest.raises(AttributeError, match="has no setter"):
             mutable.changes = {}

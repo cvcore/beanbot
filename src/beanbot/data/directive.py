@@ -22,13 +22,6 @@ from beancount.core.data import (
 T = TypeVar("T", bound=Directive)
 
 
-# Forward declaration for Session type
-class Session:
-    """Base session interface for change tracking."""
-
-    pass
-
-
 class MutableDirective[T: Directive]:
     """A mutable wrapper around beancount directives with change tracking."""
 
@@ -37,7 +30,6 @@ class MutableDirective[T: Directive]:
     def __init__(
         self,
         directive: T,
-        session: Session,
         id: str | None = None,
         changes: dict[str, Any] | None = None,
     ):
@@ -45,15 +37,13 @@ class MutableDirective[T: Directive]:
 
         Args:
             directive: The beancount directive to wrap
-            session: The session for change tracking
             id: Unique identifier for this directive
-            committed_state: The last committed state (None for new objects)
+            changes: Dictionary of changes made to this directive
         """
         assert isinstance(directive, self._directive_type)
 
         # Use object.__setattr__ to avoid triggering our custom __setattr__
         object.__setattr__(self, "_directive", directive)
-        object.__setattr__(self, "_session", session)
         object.__setattr__(self, "_id", id)
         if changes is None:
             changes = {}
@@ -63,11 +53,6 @@ class MutableDirective[T: Directive]:
     def id(self) -> str | None:
         """Get the unique identifier for this directive."""
         return self._id
-
-    @property
-    def session(self) -> Session:
-        """Get the session associated with this directive."""
-        return self._session
 
     @property
     def directive(self) -> T:
@@ -83,10 +68,6 @@ class MutableDirective[T: Directive]:
         """Get an attribute from the wrapped directive.
 
         If the attribute does not exist, raise an AttributeError."""
-        if name.startswith("_"):
-            # Avoid infinite recursion for private attributes
-            return object.__getattribute__(self, name)
-
         # If the attribute is changed, return the changed value
         if name in self._changes:
             return self._changes[name]
@@ -95,13 +76,9 @@ class MutableDirective[T: Directive]:
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Set an attribute on the wrapped directive with change tracking."""
-        if name.startswith("_"):
-            object.__setattr__(self, name, value)
+        if name.startswith("_") or name in ("directive", "id", "changes"):
+            super().__setattr__(name, value)
             return
-        elif name in ("directive", "session", "id", "changes"):
-            raise AttributeError(
-                f"Forbidden: can't modify attribute '{name}' on {type(self).__name__}"
-            )
 
         # Check if this is a valid field on the directive
         if not hasattr(self._directive, name):
@@ -115,12 +92,6 @@ class MutableDirective[T: Directive]:
         elif name in self._changes:
             # If the value is set back to the original, remove it from changes
             del self._changes[name]
-
-        # Update session state
-        if len(self._changes) > 0:
-            self._session.update_state(self, "CHANGED")
-        else:
-            self._session.update_state(self, "UNCHANGED")
 
     def to_immutable(self) -> T:
         """Convert this mutable directive back to an immutable beancount directive."""
@@ -189,3 +160,33 @@ class MutableCustom(MutableDirective[Custom]):
 
 class MutableCommodity(MutableDirective[Commodity]):
     _directive_type = Commodity
+
+
+def to_mutable(directive: Directive) -> MutableDirective[Directive]:
+    """Convert a beancount directive to a mutable directive."""
+    if isinstance(directive, Transaction):
+        return MutableTransaction(directive)
+    elif isinstance(directive, Open):
+        return MutableOpen(directive)
+    elif isinstance(directive, Close):
+        return MutableClose(directive)
+    elif isinstance(directive, Balance):
+        return MutableBalance(directive)
+    elif isinstance(directive, Pad):
+        return MutablePad(directive)
+    elif isinstance(directive, Note):
+        return MutableNote(directive)
+    elif isinstance(directive, Event):
+        return MutableEvent(directive)
+    elif isinstance(directive, Query):
+        return MutableQuery(directive)
+    elif isinstance(directive, Price):
+        return MutablePrice(directive)
+    elif isinstance(directive, Document):
+        return MutableDocument(directive)
+    elif isinstance(directive, Custom):
+        return MutableCustom(directive)
+    elif isinstance(directive, Commodity):
+        return MutableCommodity(directive)
+
+    raise TypeError(f"Unsupported directive type: {type(directive).__name__}")
