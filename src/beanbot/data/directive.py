@@ -104,6 +104,10 @@ class MutableDirective[T: Directive]:
         changes_info = f", changes: {self._changes}" if self._changes else ""
         return f"{type(self._directive).__name__}(id={self._id}{changes_info})"
 
+    def dirty(self) -> bool:
+        """Check if there are any changes made to this directive."""
+        return bool(self._changes)
+
 
 def get_source_file_path(directive: Directive) -> str | None:
     """

@@ -352,6 +352,53 @@ class TestMutableCommodity:
         assert "currency" in mutable.changes
 
 
+class TestMutableDirectiveDirty:
+    def test_initially_not_dirty(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
+        assert not mutable.dirty()
+
+    def test_dirty_after_modification(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
+        mutable.narration = "Modified narration"
+        assert mutable.dirty()
+
+    def test_not_dirty_after_reverting_to_original(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
+        original_narration = mutable.narration
+
+        # Modify and verify it's dirty
+        mutable.narration = "Modified"
+        assert mutable.dirty()
+
+        # Revert to original value
+        mutable.narration = original_narration
+        assert not mutable.dirty()
+
+    def test_dirty_with_multiple_changes(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
+        mutable.narration = "Modified narration"
+        mutable.payee = "Modified payee"
+        assert mutable.dirty()
+
+    def test_partially_reverted_still_dirty(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
+        original_narration = mutable.narration
+
+        # Make multiple changes
+        mutable.narration = "Modified narration"
+        mutable.payee = "Modified payee"
+        assert mutable.dirty()
+
+        # Revert one change, should still be dirty
+        mutable.narration = original_narration
+        assert mutable.dirty()
+
+    def test_construction_with_existing_changes(self, sample_transaction):
+        changes = {"narration": "Pre-existing change"}
+        mutable = MutableTransaction(sample_transaction, changes=changes)
+        assert mutable.dirty()
+
+
 class TestMutableDirectiveBase:
     def test_invalid_attribute_access(self, sample_transaction):
         mutable = MutableTransaction(sample_transaction)
