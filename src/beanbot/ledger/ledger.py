@@ -279,7 +279,6 @@ class Ledger:
         entry.meta[self.HASH_ATTR] = new_id
         return new_id, True
 
-    @property
     def dirty(self) -> bool:
         """Check if the ledger has unsaved changes."""
         return (

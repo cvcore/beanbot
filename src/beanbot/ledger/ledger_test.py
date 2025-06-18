@@ -98,7 +98,7 @@ def test_init_loads_ledger(ledger):
     # Check that entries were loaded
     assert len(ledger._existing_entries) > 0
     assert ledger._options_map is not None
-    assert not ledger.dirty
+    assert not ledger.dirty()
 
 
 def test_add_entry(ledger, sample_transaction):
@@ -110,7 +110,7 @@ def test_add_entry(ledger, sample_transaction):
     # Check that entry was added
     assert isinstance(entry_id, str)
     assert entry_id in ledger._new_entries
-    assert ledger.dirty
+    assert ledger.dirty()
 
     # Check that existing entries count hasn't changed
     assert len(ledger._existing_entries) == initial_count
@@ -128,7 +128,7 @@ def test_remove_existing_entry(ledger):
     assert result is True
     assert existing_entry_id in ledger._deleted_entries
     assert ledger._deleted_entries[existing_entry_id] == original_entry
-    assert ledger.dirty
+    assert ledger.dirty()
 
 
 def test_remove_new_entry(ledger, sample_transaction):
@@ -147,7 +147,7 @@ def test_remove_new_entry(ledger, sample_transaction):
     assert result is True
     assert entry_id not in ledger._new_entries
     assert entry_id not in ledger._deleted_entries
-    assert ledger.dirty is False
+    assert ledger.dirty() is False
     # Ensure existing entries are untouched
     assert ledger._existing_entries == existing_entries_before
 
@@ -170,7 +170,7 @@ def test_replace_existing_entry(ledger, sample_transaction):
     # Check that entry was replaced
     assert isinstance(new_entry_id, str)
     assert existing_entry_id in ledger._changed_entries
-    assert ledger.dirty
+    assert ledger.dirty()
 
 
 def test_replace_nonexistent_entry(ledger, sample_transaction):
@@ -185,11 +185,11 @@ def test_replace_nonexistent_entry(ledger, sample_transaction):
 def test_dirty_property(ledger, sample_transaction):
     """Test the dirty property."""
     # Initially should not be dirty
-    assert not ledger.dirty
+    assert not ledger.dirty()
 
     # Adding an entry should make it dirty
     ledger.add(sample_transaction)
-    assert ledger.dirty
+    assert ledger.dirty()
 
 
 @patch("beanbot.ledger.ledger.TextEditor")
@@ -201,7 +201,7 @@ def test_save_with_changes(mock_text_editor, ledger, sample_transaction):
 
     # Add a new entry
     entry_id = ledger.add(sample_transaction)
-    assert ledger.dirty
+    assert ledger.dirty()
 
     # Save changes
     ledger.save()
@@ -236,7 +236,7 @@ def test_save_with_changes(mock_text_editor, ledger, sample_transaction):
     mock_editor_instance.save_changes.assert_called()
 
     # Check that state was updated
-    assert not ledger.dirty
+    assert not ledger.dirty()
     assert entry_id in ledger._existing_entries
     assert len(ledger._new_entries) == 0
 
@@ -276,13 +276,13 @@ def test_reload_ledger(ledger, sample_transaction):
 
     # Add some changes to make it dirty
     ledger.add(sample_transaction)
-    assert ledger.dirty
+    assert ledger.dirty()
 
     # Reload
     ledger.load()
 
     # Check that state was reset
-    assert not ledger.dirty
+    assert not ledger.dirty()
     assert len(ledger._existing_entries) == initial_entries_count
     assert len(ledger._new_entries) == 0
     assert len(ledger._changed_entries) == 0
@@ -306,7 +306,7 @@ class TestLedgerIntegration:
 
         # Add entry
         entry_id = ledger.add(sample_transaction)
-        assert ledger.dirty
+        assert ledger.dirty()
         assert entry_id in ledger._new_entries
 
         # Replace entry
@@ -331,7 +331,7 @@ class TestLedgerIntegration:
         # Remove the entry
         ledger.remove(new_entry_id)
         assert new_entry_id not in ledger._new_entries
-        assert not ledger.dirty
+        assert not ledger.dirty()
 
         # Final state should be the same as initial
         assert len(ledger._existing_entries) == initial_count
@@ -349,7 +349,7 @@ class TestLedgerIntegration:
 
             # Add a new transaction
             entry_id = ledger.add(sample_transaction)
-            assert ledger.dirty
+            assert ledger.dirty()
 
             from beancount.parser.printer import EntryPrinter
 
@@ -363,7 +363,7 @@ class TestLedgerIntegration:
             ledger.save()
 
             # Verify state after save
-            assert not ledger.dirty
+            assert not ledger.dirty()
             assert entry_id in ledger._existing_entries
             assert len(ledger._new_entries) == 0
             assert len(ledger._existing_entries) == initial_count + 1
@@ -449,14 +449,14 @@ class TestLedgerIntegration:
 
             # Replace the entry
             new_entry_id = ledger.replace(existing_entry_id, modified_transaction)
-            assert ledger.dirty
+            assert ledger.dirty()
             assert new_entry_id is not None
 
             # Save changes (this uses real TextEditor)
             ledger.save()
 
             # Verify state after save
-            assert not ledger.dirty
+            assert not ledger.dirty()
             assert new_entry_id in ledger._existing_entries
             assert new_entry_id == existing_entry_id
             assert len(ledger._changed_entries) == 0
@@ -522,14 +522,14 @@ class TestLedgerIntegration:
             # Remove the entry
             result = ledger.remove(existing_entry_id)
             assert result is True
-            assert ledger.dirty
+            assert ledger.dirty()
             assert existing_entry_id in ledger._deleted_entries
 
             # Save changes (this uses real TextEditor)
             ledger.save()
 
             # Verify state after save
-            assert not ledger.dirty
+            assert not ledger.dirty()
             assert existing_entry_id not in ledger._existing_entries
             assert len(ledger._deleted_entries) == 0
             assert len(ledger._existing_entries) == initial_count - 1
@@ -554,7 +554,7 @@ class TestLedgerIntegration:
         ledger = Ledger(main_file_noid)
 
         # Should be dirty because IDs were automatically allocated
-        assert ledger.dirty
+        assert ledger.dirty()
 
         # Should have existing entries
         assert len(ledger._existing_entries) > 0
@@ -577,7 +577,7 @@ class TestLedgerIntegration:
 
             # Load the file (should be dirty due to ID allocation)
             ledger = Ledger(str(temp_file))
-            assert ledger.dirty
+            assert ledger.dirty()
 
             initial_entry_count = len(ledger._existing_entries)
 
@@ -585,13 +585,13 @@ class TestLedgerIntegration:
             ledger.save()
 
             # After saving, should not be dirty
-            assert not ledger.dirty
+            assert not ledger.dirty()
 
             # Reload the file
             ledger_reloaded = Ledger(str(temp_file))
 
             # After reload, should not be dirty (IDs are now in the file)
-            assert not ledger_reloaded.dirty
+            assert not ledger_reloaded.dirty()
 
             # Should have the same number of entries
             assert len(ledger_reloaded._existing_entries) == initial_entry_count
@@ -614,11 +614,11 @@ class TestLedgerIntegration:
 
             # IDs should be identical
             assert first_load_ids == second_load_ids
-            assert not ledger2.dirty
+            assert not ledger2.dirty()
 
             # Third load to be extra sure
             ledger3 = Ledger(str(temp_file))
             third_load_ids = set(ledger3._existing_entries.keys())
 
             assert first_load_ids == third_load_ids
-            assert not ledger3.dirty
+            assert not ledger3.dirty()
