@@ -102,8 +102,7 @@ class MutableDirective[T: Directive]:
 
     def to_immutable(self) -> T:
         """Convert this mutable directive back to an immutable beancount directive."""
-        updated_directive = deepcopy(self._directive)
-        updated_directive._replace(**self._changes)
+        updated_directive = deepcopy(self._directive)._replace(**self._changes)
         if updated_directive.meta is None:
             updated_directive.meta = {}
         if self._id is not None:
