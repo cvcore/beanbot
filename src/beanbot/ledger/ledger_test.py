@@ -122,7 +122,7 @@ def test_remove_existing_entry(ledger):
     existing_entry_id = next(iter(ledger._existing_entries.keys()))
     original_entry = ledger._existing_entries[existing_entry_id]
 
-    result = ledger.remove(existing_entry_id)
+    result = ledger.delete(existing_entry_id)
 
     # Check that entry was removed
     assert result is True
@@ -141,7 +141,7 @@ def test_remove_new_entry(ledger, sample_transaction):
     existing_entries_before = ledger._existing_entries.copy()
 
     # Remove the new entry
-    result = ledger.remove(entry_id)
+    result = ledger.delete(entry_id)
 
     # Check that entry was removed
     assert result is True
@@ -154,7 +154,7 @@ def test_remove_new_entry(ledger, sample_transaction):
 
 def test_remove_nonexistent_entry(ledger):
     """Test removing a non-existent entry."""
-    result = ledger.remove("nonexistent_id")
+    result = ledger.delete("nonexistent_id")
 
     # Check that removal failed gracefully
     assert result is False
@@ -322,14 +322,14 @@ class TestLedgerIntegration:
         )
 
         # Since it's a new entry, we need to remove and add again
-        ledger.remove(entry_id)
+        ledger.delete(entry_id)
         new_entry_id = ledger.add(modified_transaction)
 
         assert new_entry_id in ledger._new_entries
         assert ledger._new_entries[new_entry_id].payee == "Modified Payee"
 
         # Remove the entry
-        ledger.remove(new_entry_id)
+        ledger.delete(new_entry_id)
         assert new_entry_id not in ledger._new_entries
         assert not ledger.dirty()
 
@@ -520,7 +520,7 @@ class TestLedgerIntegration:
             )
 
             # Remove the entry
-            result = ledger.remove(existing_entry_id)
+            result = ledger.delete(existing_entry_id)
             assert result is True
             assert ledger.dirty()
             assert existing_entry_id in ledger._deleted_entries

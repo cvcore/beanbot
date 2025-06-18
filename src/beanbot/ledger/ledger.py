@@ -53,7 +53,7 @@ class Ledger:
         self._new_entries[entry_id] = entry
         return entry_id
 
-    def remove(self, entry_id: str) -> bool:
+    def delete(self, entry_id: str) -> bool:
         """Remove an entry from the ledger.
 
         Returns:
