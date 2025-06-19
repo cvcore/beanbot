@@ -148,9 +148,9 @@ class MutableDirective[T: Directive]:
         self._id = value
 
     @property
-    def directive(self) -> T:
+    def original(self) -> T:
         """Get the wrapped beancount directive."""
-        return _to_immutable(self._mutable_directive)
+        return self._original_directive
 
     def __getattr__(self, name: str) -> Any:
         """Get an attribute from the mutable implementation."""

@@ -178,7 +178,7 @@ class TestMutableTransaction:
     def test_construction(self, sample_transaction):
         mutable = MutableTransaction(sample_transaction, id="txn_1")
         assert mutable.id == "txn_1"
-        assert mutable.directive == sample_transaction
+        assert mutable.original == sample_transaction
         assert not mutable.dirty()
 
     def test_attribute_access(self, sample_transaction):
@@ -218,7 +218,7 @@ class TestMutableOpen:
     def test_construction(self, sample_open):
         mutable = MutableOpen(sample_open, id="open_1")
         assert mutable.id == "open_1"
-        assert mutable.directive == sample_open
+        assert mutable.original == sample_open
         assert mutable.account == "Assets:Cash"
 
     def test_attribute_modification(self, sample_open):
@@ -249,7 +249,7 @@ class TestMutableClose:
     def test_construction(self, sample_close):
         mutable = MutableClose(sample_close, id="close_1")
         assert mutable.id == "close_1"
-        assert mutable.directive == sample_close
+        assert mutable.original == sample_close
         assert mutable.account == "Assets:Cash"
 
     def test_attribute_modification(self, sample_close):
@@ -280,7 +280,7 @@ class TestMutableBalance:
     def test_construction(self, sample_balance):
         mutable = MutableBalance(sample_balance, id="balance_1")
         assert mutable.id == "balance_1"
-        assert mutable.directive == sample_balance
+        assert mutable.original == sample_balance
         assert mutable.account == "Assets:Cash"
 
     def test_attribute_modification(self, sample_balance):
@@ -313,7 +313,7 @@ class TestMutablePad:
     def test_construction(self, sample_pad):
         mutable = MutablePad(sample_pad, id="pad_1")
         assert mutable.id == "pad_1"
-        assert mutable.directive == sample_pad
+        assert mutable.original == sample_pad
         assert mutable.account == "Assets:Cash"
 
     def test_attribute_modification(self, sample_pad):
@@ -344,7 +344,7 @@ class TestMutableNote:
     def test_construction(self, sample_note):
         mutable = MutableNote(sample_note, id="note_1")
         assert mutable.id == "note_1"
-        assert mutable.directive == sample_note
+        assert mutable.original == sample_note
         assert mutable.comment == "Test note"
 
     def test_attribute_modification(self, sample_note):
@@ -375,7 +375,7 @@ class TestMutableEvent:
     def test_construction(self, sample_event):
         mutable = MutableEvent(sample_event, id="event_1")
         assert mutable.id == "event_1"
-        assert mutable.directive == sample_event
+        assert mutable.original == sample_event
         assert mutable.type == "location"
 
     def test_attribute_modification(self, sample_event):
@@ -406,7 +406,7 @@ class TestMutableQuery:
     def test_construction(self, sample_query):
         mutable = MutableQuery(sample_query, id="query_1")
         assert mutable.id == "query_1"
-        assert mutable.directive == sample_query
+        assert mutable.original == sample_query
         assert mutable.name == "test_query"
 
     def test_attribute_modification(self, sample_query):
@@ -437,7 +437,7 @@ class TestMutablePrice:
     def test_construction(self, sample_price):
         mutable = MutablePrice(sample_price, id="price_1")
         assert mutable.id == "price_1"
-        assert mutable.directive == sample_price
+        assert mutable.original == sample_price
         assert mutable.currency == "AAPL"
 
     def test_attribute_modification(self, sample_price):
@@ -470,7 +470,7 @@ class TestMutableDocument:
     def test_construction(self, sample_document):
         mutable = MutableDocument(sample_document, id="doc_1")
         assert mutable.id == "doc_1"
-        assert mutable.directive == sample_document
+        assert mutable.original == sample_document
         assert mutable.filename == "receipt.pdf"
 
     def test_attribute_modification(self, sample_document):
@@ -501,7 +501,7 @@ class TestMutableCustom:
     def test_construction(self, sample_custom):
         mutable = MutableCustom(sample_custom, id="custom_1")
         assert mutable.id == "custom_1"
-        assert mutable.directive == sample_custom
+        assert mutable.original == sample_custom
         assert mutable.type == "budget"
 
     def test_attribute_modification(self, sample_custom):
@@ -532,7 +532,7 @@ class TestMutableCommodity:
     def test_construction(self, sample_commodity):
         mutable = MutableCommodity(sample_commodity, id="commodity_1")
         assert mutable.id == "commodity_1"
-        assert mutable.directive == sample_commodity
+        assert mutable.original == sample_commodity
         assert mutable.currency == "USD"
 
     def test_attribute_modification(self, sample_commodity):
@@ -637,9 +637,9 @@ class TestMutableDirectiveBase:
 
         # Modify attribute and verify directive property reflects the change
         mutable.narration = "Changed"
-        directive = mutable.directive
-        assert directive.narration == "Changed"
-        assert directive != sample_transaction  # Should be different from original
+        directive = mutable.original
+        assert directive.narration != "Changed"
+        assert directive == sample_transaction  # Should not be different from original
 
         # Verify original directive is unchanged
         assert sample_transaction.narration == "Test transaction"
