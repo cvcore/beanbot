@@ -199,6 +199,20 @@ class TestMutableTransaction:
         converted_back = mutable.to_immutable()
         assert converted_back == sample_transaction
 
+    def test_reset_method(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
+
+        # Modify some attributes
+        mutable.narration = "Modified narration"
+        mutable.payee = "Modified payee"
+        assert mutable.dirty()
+
+        # Reset changes
+        mutable.reset()
+        assert not mutable.dirty()
+        assert mutable.narration == sample_transaction.narration
+        assert mutable.payee == sample_transaction.payee
+
 
 class TestMutableOpen:
     def test_construction(self, sample_open):
@@ -218,6 +232,18 @@ class TestMutableOpen:
         converted_back = mutable.to_immutable()
         assert converted_back == sample_open
 
+    def test_reset_method(self, sample_open):
+        mutable = MutableOpen(sample_open)
+
+        # Modify attribute
+        mutable.account = "Assets:Bank"
+        assert mutable.dirty()
+
+        # Reset changes
+        mutable.reset()
+        assert not mutable.dirty()
+        assert mutable.account == sample_open.account
+
 
 class TestMutableClose:
     def test_construction(self, sample_close):
@@ -236,6 +262,18 @@ class TestMutableClose:
         mutable = MutableClose(sample_close)
         converted_back = mutable.to_immutable()
         assert converted_back == sample_close
+
+    def test_reset_method(self, sample_close):
+        mutable = MutableClose(sample_close)
+
+        # Modify attribute
+        mutable.date = date(2024, 6, 30)
+        assert mutable.dirty()
+
+        # Reset changes
+        mutable.reset()
+        assert not mutable.dirty()
+        assert mutable.date == sample_close.date
 
 
 class TestMutableBalance:
@@ -257,6 +295,19 @@ class TestMutableBalance:
         converted_back = mutable.to_immutable()
         assert converted_back == sample_balance
 
+    def test_reset_method(self, sample_balance):
+        mutable = MutableBalance(sample_balance)
+
+        # Modify attribute
+        new_amount = Amount(Decimal("2000"), "USD")
+        mutable.amount = new_amount
+        assert mutable.dirty()
+
+        # Reset changes
+        mutable.reset()
+        assert not mutable.dirty()
+        assert mutable.amount == sample_balance.amount
+
 
 class TestMutablePad:
     def test_construction(self, sample_pad):
@@ -275,6 +326,18 @@ class TestMutablePad:
         mutable = MutablePad(sample_pad)
         converted_back = mutable.to_immutable()
         assert converted_back == sample_pad
+
+    def test_reset_method(self, sample_pad):
+        mutable = MutablePad(sample_pad)
+
+        # Modify attribute
+        mutable.source_account = "Equity:Opening-Balance"
+        assert mutable.dirty()
+
+        # Reset changes
+        mutable.reset()
+        assert not mutable.dirty()
+        assert mutable.source_account == sample_pad.source_account
 
 
 class TestMutableNote:
@@ -295,6 +358,18 @@ class TestMutableNote:
         converted_back = mutable.to_immutable()
         assert converted_back == sample_note
 
+    def test_reset_method(self, sample_note):
+        mutable = MutableNote(sample_note)
+
+        # Modify attribute
+        mutable.comment = "Modified note"
+        assert mutable.dirty()
+
+        # Reset changes
+        mutable.reset()
+        assert not mutable.dirty()
+        assert mutable.comment == sample_note.comment
+
 
 class TestMutableEvent:
     def test_construction(self, sample_event):
@@ -314,6 +389,18 @@ class TestMutableEvent:
         converted_back = mutable.to_immutable()
         assert converted_back == sample_event
 
+    def test_reset_method(self, sample_event):
+        mutable = MutableEvent(sample_event)
+
+        # Modify attribute
+        mutable.description = "San Francisco"
+        assert mutable.dirty()
+
+        # Reset changes
+        mutable.reset()
+        assert not mutable.dirty()
+        assert mutable.description == sample_event.description
+
 
 class TestMutableQuery:
     def test_construction(self, sample_query):
@@ -332,6 +419,18 @@ class TestMutableQuery:
         mutable = MutableQuery(sample_query)
         converted_back = mutable.to_immutable()
         assert converted_back == sample_query
+
+    def test_reset_method(self, sample_query):
+        mutable = MutableQuery(sample_query)
+
+        # Modify attribute
+        mutable.name = "modified_query"
+        assert mutable.dirty()
+
+        # Reset changes
+        mutable.reset()
+        assert not mutable.dirty()
+        assert mutable.name == sample_query.name
 
 
 class TestMutablePrice:
@@ -353,6 +452,19 @@ class TestMutablePrice:
         converted_back = mutable.to_immutable()
         assert converted_back == sample_price
 
+    def test_reset_method(self, sample_price):
+        mutable = MutablePrice(sample_price)
+
+        # Modify attribute
+        new_amount = Amount(Decimal("155.00"), "USD")
+        mutable.amount = new_amount
+        assert mutable.dirty()
+
+        # Reset changes
+        mutable.reset()
+        assert not mutable.dirty()
+        assert mutable.amount == sample_price.amount
+
 
 class TestMutableDocument:
     def test_construction(self, sample_document):
@@ -371,6 +483,18 @@ class TestMutableDocument:
         mutable = MutableDocument(sample_document)
         converted_back = mutable.to_immutable()
         assert converted_back == sample_document
+
+    def test_reset_method(self, sample_document):
+        mutable = MutableDocument(sample_document)
+
+        # Modify attribute
+        mutable.filename = "invoice.pdf"
+        assert mutable.dirty()
+
+        # Reset changes
+        mutable.reset()
+        assert not mutable.dirty()
+        assert mutable.filename == sample_document.filename
 
 
 class TestMutableCustom:
@@ -391,6 +515,18 @@ class TestMutableCustom:
         converted_back = mutable.to_immutable()
         assert converted_back == sample_custom
 
+    def test_reset_method(self, sample_custom):
+        mutable = MutableCustom(sample_custom)
+
+        # Modify attribute
+        mutable.type = "forecast"
+        assert mutable.dirty()
+
+        # Reset changes
+        mutable.reset()
+        assert not mutable.dirty()
+        assert mutable.type == sample_custom.type
+
 
 class TestMutableCommodity:
     def test_construction(self, sample_commodity):
@@ -409,6 +545,18 @@ class TestMutableCommodity:
         mutable = MutableCommodity(sample_commodity)
         converted_back = mutable.to_immutable()
         assert converted_back == sample_commodity
+
+    def test_reset_method(self, sample_commodity):
+        mutable = MutableCommodity(sample_commodity)
+
+        # Modify attribute
+        mutable.currency = "EUR"
+        assert mutable.dirty()
+
+        # Reset changes
+        mutable.reset()
+        assert not mutable.dirty()
+        assert mutable.currency == sample_commodity.currency
 
 
 class TestMutableDirectiveDirty:

@@ -187,7 +187,9 @@ class MutableDirective[T: Directive]:
 
     def reset(self) -> None:
         """Reset the changes made to this directive."""
-        self._changes.clear()
+        self._mutable_directive = _from_immutable(
+            type(self._original_directive), self._original_directive
+        )
 
 
 class MutableTransaction(MutableDirective[Transaction]):
