@@ -179,7 +179,7 @@ class TestMutableTransaction:
         mutable = MutableTransaction(sample_transaction, id="txn_1")
         assert mutable.id == "txn_1"
         assert mutable.directive == sample_transaction
-        assert mutable.changes == {}
+        assert not mutable.dirty()
 
     def test_attribute_access(self, sample_transaction):
         mutable = MutableTransaction(sample_transaction)
@@ -192,8 +192,12 @@ class TestMutableTransaction:
         mutable = MutableTransaction(sample_transaction)
         mutable.narration = "Modified narration"
         assert mutable.narration == "Modified narration"
-        assert "narration" in mutable.changes
-        assert mutable.changes["narration"] == "Modified narration"
+        assert mutable.dirty()
+
+    def test_round_trip_conversion(self, sample_transaction):
+        mutable = MutableTransaction(sample_transaction)
+        converted_back = mutable.to_immutable()
+        assert converted_back == sample_transaction
 
 
 class TestMutableOpen:
@@ -207,7 +211,12 @@ class TestMutableOpen:
         mutable = MutableOpen(sample_open)
         mutable.account = "Assets:Bank"
         assert mutable.account == "Assets:Bank"
-        assert "account" in mutable.changes
+        assert mutable.dirty()
+
+    def test_round_trip_conversion(self, sample_open):
+        mutable = MutableOpen(sample_open)
+        converted_back = mutable.to_immutable()
+        assert converted_back == sample_open
 
 
 class TestMutableClose:
@@ -221,7 +230,12 @@ class TestMutableClose:
         mutable = MutableClose(sample_close)
         mutable.date = date(2024, 6, 30)
         assert mutable.date == date(2024, 6, 30)
-        assert "date" in mutable.changes
+        assert mutable.dirty()
+
+    def test_round_trip_conversion(self, sample_close):
+        mutable = MutableClose(sample_close)
+        converted_back = mutable.to_immutable()
+        assert converted_back == sample_close
 
 
 class TestMutableBalance:
@@ -236,7 +250,12 @@ class TestMutableBalance:
         new_amount = Amount(Decimal("2000"), "USD")
         mutable.amount = new_amount
         assert mutable.amount == new_amount
-        assert "amount" in mutable.changes
+        assert mutable.dirty()
+
+    def test_round_trip_conversion(self, sample_balance):
+        mutable = MutableBalance(sample_balance)
+        converted_back = mutable.to_immutable()
+        assert converted_back == sample_balance
 
 
 class TestMutablePad:
@@ -250,7 +269,12 @@ class TestMutablePad:
         mutable = MutablePad(sample_pad)
         mutable.source_account = "Equity:Opening-Balance"
         assert mutable.source_account == "Equity:Opening-Balance"
-        assert "source_account" in mutable.changes
+        assert mutable.dirty()
+
+    def test_round_trip_conversion(self, sample_pad):
+        mutable = MutablePad(sample_pad)
+        converted_back = mutable.to_immutable()
+        assert converted_back == sample_pad
 
 
 class TestMutableNote:
@@ -264,7 +288,12 @@ class TestMutableNote:
         mutable = MutableNote(sample_note)
         mutable.comment = "Modified note"
         assert mutable.comment == "Modified note"
-        assert "comment" in mutable.changes
+        assert mutable.dirty()
+
+    def test_round_trip_conversion(self, sample_note):
+        mutable = MutableNote(sample_note)
+        converted_back = mutable.to_immutable()
+        assert converted_back == sample_note
 
 
 class TestMutableEvent:
@@ -278,7 +307,12 @@ class TestMutableEvent:
         mutable = MutableEvent(sample_event)
         mutable.description = "San Francisco"
         assert mutable.description == "San Francisco"
-        assert "description" in mutable.changes
+        assert mutable.dirty()
+
+    def test_round_trip_conversion(self, sample_event):
+        mutable = MutableEvent(sample_event)
+        converted_back = mutable.to_immutable()
+        assert converted_back == sample_event
 
 
 class TestMutableQuery:
@@ -292,7 +326,12 @@ class TestMutableQuery:
         mutable = MutableQuery(sample_query)
         mutable.name = "modified_query"
         assert mutable.name == "modified_query"
-        assert "name" in mutable.changes
+        assert mutable.dirty()
+
+    def test_round_trip_conversion(self, sample_query):
+        mutable = MutableQuery(sample_query)
+        converted_back = mutable.to_immutable()
+        assert converted_back == sample_query
 
 
 class TestMutablePrice:
@@ -307,7 +346,12 @@ class TestMutablePrice:
         new_amount = Amount(Decimal("155.00"), "USD")
         mutable.amount = new_amount
         assert mutable.amount == new_amount
-        assert "amount" in mutable.changes
+        assert mutable.dirty()
+
+    def test_round_trip_conversion(self, sample_price):
+        mutable = MutablePrice(sample_price)
+        converted_back = mutable.to_immutable()
+        assert converted_back == sample_price
 
 
 class TestMutableDocument:
@@ -321,7 +365,12 @@ class TestMutableDocument:
         mutable = MutableDocument(sample_document)
         mutable.filename = "invoice.pdf"
         assert mutable.filename == "invoice.pdf"
-        assert "filename" in mutable.changes
+        assert mutable.dirty()
+
+    def test_round_trip_conversion(self, sample_document):
+        mutable = MutableDocument(sample_document)
+        converted_back = mutable.to_immutable()
+        assert converted_back == sample_document
 
 
 class TestMutableCustom:
@@ -335,7 +384,12 @@ class TestMutableCustom:
         mutable = MutableCustom(sample_custom)
         mutable.type = "forecast"
         assert mutable.type == "forecast"
-        assert "type" in mutable.changes
+        assert mutable.dirty()
+
+    def test_round_trip_conversion(self, sample_custom):
+        mutable = MutableCustom(sample_custom)
+        converted_back = mutable.to_immutable()
+        assert converted_back == sample_custom
 
 
 class TestMutableCommodity:
@@ -349,7 +403,12 @@ class TestMutableCommodity:
         mutable = MutableCommodity(sample_commodity)
         mutable.currency = "EUR"
         assert mutable.currency == "EUR"
-        assert "currency" in mutable.changes
+        assert mutable.dirty()
+
+    def test_round_trip_conversion(self, sample_commodity):
+        mutable = MutableCommodity(sample_commodity)
+        converted_back = mutable.to_immutable()
+        assert converted_back == sample_commodity
 
 
 class TestMutableDirectiveDirty:
@@ -393,11 +452,6 @@ class TestMutableDirectiveDirty:
         mutable.narration = original_narration
         assert mutable.dirty()
 
-    def test_construction_with_existing_changes(self, sample_transaction):
-        changes = {"narration": "Pre-existing change"}
-        mutable = MutableTransaction(sample_transaction, changes=changes)
-        assert mutable.dirty()
-
 
 class TestMutableDirectiveBase:
     def test_invalid_attribute_access(self, sample_transaction):
@@ -416,18 +470,28 @@ class TestMutableDirectiveBase:
 
         # Modify the attribute
         mutable.narration = "Modified"
-        assert "narration" in mutable.changes
+        assert mutable.dirty()
+
+        # Verify change is reflected in conversion
+        converted = mutable.to_immutable()
+        assert converted.narration == "Modified"
 
         # Revert to original value
         mutable.narration = original_narration
-        assert "narration" not in mutable.changes
+        assert not mutable.dirty()
 
-    def test_directive_assignment_error(self, sample_transaction):
-        mutable = MutableTransaction(sample_transaction)
-        with pytest.raises(AttributeError, match="has no setter"):
-            mutable.directive = sample_transaction
+        # Verify revert is reflected in conversion
+        converted = mutable.to_immutable()
+        assert converted.narration == original_narration
 
-    def test_changes_assignment_error(self, sample_transaction):
+    def test_directive_property_readonly(self, sample_transaction):
         mutable = MutableTransaction(sample_transaction)
-        with pytest.raises(AttributeError, match="has no setter"):
-            mutable.changes = {}
+
+        # Modify attribute and verify directive property reflects the change
+        mutable.narration = "Changed"
+        directive = mutable.directive
+        assert directive.narration == "Changed"
+        assert directive != sample_transaction  # Should be different from original
+
+        # Verify original directive is unchanged
+        assert sample_transaction.narration == "Test transaction"

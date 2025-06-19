@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "beancount>=3.1.0",
+    "recordclass>=0.23.1",
 ]
 authors = [
     { name = "Chengxin Wang", email = "w@hxdl.org" },
@@ -27,4 +28,5 @@ version-file = "src/beanbot/_version.py"
 dev = [
     "ipython>=9.3.0",
     "pytest>=8.4.0",
+    "pytest-cov>=6.2.1",
 ]

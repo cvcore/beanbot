@@ -1,6 +1,5 @@
-import os
 from copy import deepcopy
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union
 
 from beancount import Directive
 from beancount.core.data import (
@@ -13,15 +12,106 @@ from beancount.core.data import (
     Note,
     Open,
     Pad,
+    Posting,
     Price,
     Query,
     Transaction,
 )
+from recordclass import recordclass
 
 from beanbot.data.constants import METADATA_BBID
 
 # Type variable for beancount directives
 T = TypeVar("T", bound=Directive)
+
+# Mapping dictionaries for conversion between mutable and immutable types
+_MAP_TO_MUTABLE_DIRECTIVE = {}
+_MAP_TO_IMMUTABLE_DIRECTIVE = {}
+
+
+def _from_immutable(cls: type, obj: Directive) -> "_MutableDirectiveImpl":
+    """Convert an immutable object to its mutable counterpart recursively"""
+    cls_mutable = _MAP_TO_MUTABLE_DIRECTIVE[cls]
+    fields_dict = dict()
+    for key, value in obj._asdict().items():
+        if type(value) in _MAP_TO_MUTABLE_DIRECTIVE:
+            fields_dict[key] = _from_immutable(type(value), value)
+        elif isinstance(value, list):
+            value = [
+                (
+                    v
+                    if type(v) not in _MAP_TO_MUTABLE_DIRECTIVE
+                    else _from_immutable(type(v), v)
+                )
+                for v in value
+            ]
+            fields_dict[key] = value
+        else:
+            fields_dict[key] = value
+    return cls_mutable(**fields_dict)
+
+
+def _to_immutable(obj: "_MutableDirectiveImpl") -> Directive:
+    """Convert a mutable object to its immutable counterpart recursively"""
+    cls = type(obj)
+    cls_immutable = _MAP_TO_IMMUTABLE_DIRECTIVE[cls]
+    fields_dict = dict()
+    for key, value in obj._asdict().items():
+        if type(value) in _MAP_TO_IMMUTABLE_DIRECTIVE:
+            fields_dict[key] = _to_immutable(value)
+        elif isinstance(value, list):
+            value = [
+                v if type(v) not in _MAP_TO_IMMUTABLE_DIRECTIVE else _to_immutable(v)
+                for v in value
+            ]
+            fields_dict[key] = value
+        else:
+            fields_dict[key] = value
+    return cls_immutable(**fields_dict)
+
+
+def _make_mutable_type(immutable_type: type) -> type:
+    """Create a mutable version of an immutable beancount type"""
+    mutable_type = recordclass(
+        "_Mutable" + immutable_type.__name__ + "Impl", immutable_type._fields
+    )
+    mutable_type.from_immutable = _from_immutable
+    mutable_type.to_immutable = _to_immutable
+    _MAP_TO_MUTABLE_DIRECTIVE[immutable_type] = mutable_type
+    _MAP_TO_IMMUTABLE_DIRECTIVE[mutable_type] = immutable_type
+    return mutable_type
+
+
+# Create mutable implementation classes
+_MutableOpenImpl = _make_mutable_type(Open)
+_MutableCloseImpl = _make_mutable_type(Close)
+_MutableCommodityImpl = _make_mutable_type(Commodity)
+_MutablePadImpl = _make_mutable_type(Pad)
+_MutableBalanceImpl = _make_mutable_type(Balance)
+_MutablePostingImpl = _make_mutable_type(Posting)
+_MutableTransactionImpl = _make_mutable_type(Transaction)
+_MutableNoteImpl = _make_mutable_type(Note)
+_MutableEventImpl = _make_mutable_type(Event)
+_MutableQueryImpl = _make_mutable_type(Query)
+_MutablePriceImpl = _make_mutable_type(Price)
+_MutableDocumentImpl = _make_mutable_type(Document)
+_MutableCustomImpl = _make_mutable_type(Custom)
+
+_MutableDirectiveImpl = Union[
+    _MutableOpenImpl,
+    _MutableCloseImpl,
+    _MutableCommodityImpl,
+    _MutablePadImpl,
+    _MutableBalanceImpl,
+    _MutablePostingImpl,
+    _MutableTransactionImpl,
+    _MutableNoteImpl,
+    _MutableEventImpl,
+    _MutableQueryImpl,
+    _MutablePriceImpl,
+    _MutableDocumentImpl,
+    _MutableCustomImpl,
+]
 
 
 class MutableDirective[T: Directive]:
@@ -33,23 +123,19 @@ class MutableDirective[T: Directive]:
         self,
         directive: T,
         id: str | None = None,
-        changes: dict[str, Any] | None = None,
     ):
         """Initialize a mutable directive.
 
         Args:
             directive: The beancount directive to wrap
             id: Unique identifier for this directive
-            changes: Dictionary of changes made to this directive
         """
         assert isinstance(directive, self._directive_type)
 
-        # Use object.__setattr__ to avoid triggering our custom __setattr__
-        super().__setattr__("_directive", directive)
-        super().__setattr__("_id", id)
-        if changes is None:
-            changes = {}
-        super().__setattr__("_changes", changes)
+        # Convert to mutable implementation and create backup
+        self._mutable_directive = _from_immutable(type(directive), directive)
+        self._original_directive = deepcopy(directive)
+        self._id = id
 
     @property
     def id(self) -> str | None:
@@ -59,77 +145,49 @@ class MutableDirective[T: Directive]:
     @id.setter
     def id(self, value: str) -> None:
         """Set the unique identifier for this directive."""
-        super().__setattr__("_id", value)
+        self._id = value
 
     @property
     def directive(self) -> T:
         """Get the wrapped beancount directive."""
-        return self._directive
-
-    @property
-    def changes(self) -> dict[str, Any]:
-        """Get the dictionary of changes made to this directive."""
-        return deepcopy(self._changes)
+        return _to_immutable(self._mutable_directive)
 
     def __getattr__(self, name: str) -> Any:
-        """Get an attribute from the wrapped directive.
-
-        If the attribute does not exist, raise an AttributeError."""
-        # If the attribute is changed, return the changed value
-        if name in self._changes:
-            return self._changes[name]
-
-        return getattr(self._directive, name)
+        """Get an attribute from the mutable implementation."""
+        return getattr(self._mutable_directive, name)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Set an attribute on the wrapped directive with change tracking."""
-        if name.startswith("_") or name in ("directive", "id", "changes"):
+        """Set an attribute on the mutable implementation."""
+        if name.startswith("_") or name in ("directive", "id"):
             super().__setattr__(name, value)
             return
 
-        # Check if this is a valid field on the directive
-        if not hasattr(self._directive, name):
-            raise AttributeError(
-                f"'{type(self._directive).__name__}' object has no attribute '{name}'"
-            )
-
-        if getattr(self._directive, name) != value:
-            # Only mark as changed if the value is different
-            self._changes[name] = value
-        elif name in self._changes:
-            # If the value is set back to the original, remove it from changes
-            del self._changes[name]
+        # Set attribute on mutable implementation
+        setattr(self._mutable_directive, name, value)
 
     def to_immutable(self) -> T:
         """Convert this mutable directive back to an immutable beancount directive."""
-        updated_directive = deepcopy(self._directive)._replace(**self._changes)
+        updated_directive = _to_immutable(self._mutable_directive)
         if updated_directive.meta is None:
-            updated_directive.meta = {}
+            updated_directive = updated_directive._replace(meta={})
         if self._id is not None:
-            updated_directive.meta[METADATA_BBID] = self._id
+            meta_copy = dict(updated_directive.meta)
+            meta_copy[METADATA_BBID] = self._id
+            updated_directive = updated_directive._replace(meta=meta_copy)
         return updated_directive
 
     def __repr__(self) -> str:
         """String representation of the mutable directive."""
-        changes_info = f", changes: {self._changes}" if self._changes else ""
-        return f"{type(self._directive).__name__}(id={self._id}{changes_info})"
+        dirty_info = " (dirty)" if self.dirty() else ""
+        return f"{type(self._mutable_directive).__name__}(id={self._id}{dirty_info})"
 
     def dirty(self) -> bool:
         """Check if there are any changes made to this directive."""
-        return bool(self._changes)
+        return self._mutable_directive.to_immutable() != self._original_directive
 
     def reset(self) -> None:
         """Reset the changes made to this directive."""
         self._changes.clear()
-
-
-def get_source_file_path(directive: Directive) -> str | None:
-    """
-    Returns the path to the source file of this directive.
-    """
-    return (
-        os.path.abspath(directive.meta.get("filename", "")) if directive.meta else None
-    )
 
 
 class MutableTransaction(MutableDirective[Transaction]):
@@ -208,3 +266,8 @@ def to_mutable(directive: Directive) -> MutableDirective[Directive]:
         return MutableCommodity(directive)
 
     raise TypeError(f"Unsupported directive type: {type(directive).__name__}")
+
+
+def make_mutable(obj: Directive) -> _MutableDirectiveImpl:
+    """Convert an immutable directive to its mutable counterpart"""
+    return _from_immutable(type(obj), obj)
