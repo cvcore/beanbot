@@ -93,3 +93,15 @@ class IDGenerator:
                 self._generated_ids.remove(id_value)
                 return True
             return False
+
+    def exists(self, id_value: str) -> bool:
+        """Check if an ID exists in this generator.
+
+        Args:
+            id_value: ID string to check
+
+        Returns:
+            bool: True if ID exists, False otherwise
+        """
+        with self._lock:
+            return id_value in self._generated_ids

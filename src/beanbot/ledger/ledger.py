@@ -7,6 +7,7 @@ from copy import deepcopy
 from beancount import Directive, load_file
 from beancount.parser.printer import EntryPrinter
 
+from beanbot.data.constants import METADATA_BBID
 from beanbot.ledger.text_editor import ChangeSet, ChangeType, TextEditor
 from beanbot.utils import logger
 from beanbot.utils.id_generator import IDGenerator
@@ -19,8 +20,6 @@ class Ledger:
     removing, and replacing entries as a whole. It also implements a stable hashing
     mechanism to ensure that entries can be uniquely identified and tracked across
     reloads."""
-
-    HASH_ATTR = "bbid"
 
     def __init__(self, main_file: str) -> None:
         self._main_file = main_file
@@ -38,7 +37,7 @@ class Ledger:
         self._changed_entries = {}  # Maps existing entry IDs to new entries
         self._deleted_entries = {}  # Maps existing entry IDs to the original entries
 
-        self._id_generator = IDGenerator()
+        self.id_generator = IDGenerator()
 
     def add(self, entry: Directive) -> str:
         """Add a new entry to the ledger.
@@ -53,8 +52,10 @@ class Ledger:
         self._new_entries[entry_id] = entry
         return entry_id
 
-    def remove(self, entry_id: str) -> bool:
-        """Remove an entry from the ledger.
+    def delete(self, entry_id: str) -> bool:
+        """Mark an entry for deletion.
+
+        The entry will be effectively removed when `save()` is called.
 
         Returns:
             True if the entry was found and removed, False otherwise."""
@@ -73,7 +74,7 @@ class Ledger:
             found = True
             del self._changed_entries[entry_id]
 
-        self._id_generator.unregister(entry_id)
+        self.id_generator.unregister(entry_id)
 
         if not found:
             logger.warning(
@@ -83,7 +84,9 @@ class Ledger:
         return found
 
     def replace(self, entry_id: str, entry_new: Directive) -> str | None:
-        """Replace an existing entry with a new one.
+        """Mark an existing entry for replacement.
+
+        The entry will be effectively replaced when `save()` is called.
 
         Returns:
             If there is no entry found with `entry_id`, returns None.
@@ -270,20 +273,37 @@ class Ledger:
         """
         assert isinstance(entry, Directive), "Entry must be a Beancount directive"
 
-        meta_bbid = entry.meta.get(self.HASH_ATTR, None)
+        meta_bbid = entry.meta.get(METADATA_BBID, None)
         if meta_bbid is not None:
-            self._id_generator.register(meta_bbid)
+            self.id_generator.register(meta_bbid)
             return meta_bbid, False
 
-        new_id = self._id_generator.generate()
-        entry.meta[self.HASH_ATTR] = new_id
+        new_id = self.id_generator.generate()
+        entry.meta[METADATA_BBID] = new_id
         return new_id, True
 
-    @property
     def dirty(self) -> bool:
         """Check if the ledger has unsaved changes."""
         return (
             len(self._new_entries) > 0
             or len(self._changed_entries) > 0
             or len(self._deleted_entries) > 0
+        )
+
+    def has_entry(self, id: str) -> bool:
+        """Check if an entry with the given ID exists in the ledger.
+
+        Args:
+            id: The ID of the entry to check.
+
+        Returns:
+            True if the entry exists, False otherwise.
+        """
+        if id in self._deleted_entries:
+            return False
+
+        return (
+            id in self._existing_entries
+            or id in self._new_entries
+            or id in self._changed_entries
         )
