@@ -7,11 +7,11 @@ class Condition(ABC):
     """Abstract base class for query conditions."""
 
     @abstractmethod
-    def evaluate(self, record: Any) -> bool:
-        """Evaluate the condition against a record.
+    def evaluate(self, entry: Any) -> bool:
+        """Evaluate the condition against an entry.
 
         Args:
-            record: The record to evaluate the condition against.
+            entry: The entry to evaluate the condition against.
 
         Returns:
             bool: True if the condition is satisfied, False otherwise.
@@ -19,11 +19,11 @@ class Condition(ABC):
         pass
 
     @abstractmethod
-    def explain(self, record: Any) -> str:
+    def explain(self, entry: Any) -> str:
         """Explain why the condition evaluates to true or false.
 
         Args:
-            record: The record to evaluate the condition against.
+            entry: The entry to evaluate the condition against.
 
         Returns:
             str: A human-readable explanation of the evaluation.
@@ -71,9 +71,9 @@ class FieldCondition(Condition):
         if self.operator == "regex":
             self.pattern = re.compile(self.value)
 
-    def evaluate(self, record: Any) -> bool:
-        """Evaluate the field condition against a record."""
-        field_value = getattr(record, self.field, None)
+    def evaluate(self, entry: Any) -> bool:
+        """Evaluate the field condition against an entry."""
+        field_value = getattr(entry, self.field, None)
 
         if self.operator == "eq":
             return field_value == self.value
@@ -96,10 +96,10 @@ class FieldCondition(Condition):
         else:
             raise ValueError(f"Unsupported operator: {self.operator}")
 
-    def explain(self, record: Any) -> str:
+    def explain(self, entry: Any) -> str:
         """Explain why the field condition evaluates to true or false."""
-        field_value = getattr(record, self.field, None)
-        result = self.evaluate(record)
+        field_value = getattr(entry, self.field, None)
+        result = self.evaluate(entry)
 
         operator_symbols = {
             "eq": "==",
@@ -155,19 +155,19 @@ class CustomCondition(Condition):
         """Initialize a custom condition.
 
         Args:
-            func: A function that takes a record and returns a boolean.
+            func: A function that takes an entry and returns a boolean.
             description: Optional description of what the function does.
         """
         self.func = func
         self.description = description or "custom function"
 
-    def evaluate(self, record: Any) -> bool:
-        """Evaluate the custom condition against a record."""
-        return self.func(record)
+    def evaluate(self, entry: Any) -> bool:
+        """Evaluate the custom condition against an entry."""
+        return self.func(entry)
 
-    def explain(self, record: Any) -> str:
+    def explain(self, entry: Any) -> str:
         """Explain why the custom condition evaluates to true or false."""
-        result = self.evaluate(record)
+        result = self.evaluate(entry)
         return f"{self.description} → {result}"
 
     def __str__(self) -> str:
@@ -182,18 +182,18 @@ class AndCondition(Condition):
         self.left = left
         self.right = right
 
-    def evaluate(self, record: Any) -> bool:
+    def evaluate(self, entry: Any) -> bool:
         """Evaluate both conditions and return True if both are True."""
-        return self.left.evaluate(record) and self.right.evaluate(record)
+        return self.left.evaluate(entry) and self.right.evaluate(entry)
 
-    def explain(self, record: Any) -> str:
+    def explain(self, entry: Any) -> str:
         """Explain why the AND condition evaluates to true or false."""
-        left_result = self.left.evaluate(record)
-        right_result = self.right.evaluate(record)
+        left_result = self.left.evaluate(entry)
+        right_result = self.right.evaluate(entry)
         result = left_result and right_result
 
-        left_explain = self.left.explain(record)
-        right_explain = self.right.explain(record)
+        left_explain = self.left.explain(entry)
+        right_explain = self.right.explain(entry)
 
         return (
             f"({left_explain}) AND ({right_explain}) → "
@@ -212,18 +212,18 @@ class OrCondition(Condition):
         self.left = left
         self.right = right
 
-    def evaluate(self, record: Any) -> bool:
+    def evaluate(self, entry: Any) -> bool:
         """Evaluate both conditions and return True if either is True."""
-        return self.left.evaluate(record) or self.right.evaluate(record)
+        return self.left.evaluate(entry) or self.right.evaluate(entry)
 
-    def explain(self, record: Any) -> str:
+    def explain(self, entry: Any) -> str:
         """Explain why the OR condition evaluates to true or false."""
-        left_result = self.left.evaluate(record)
-        right_result = self.right.evaluate(record)
+        left_result = self.left.evaluate(entry)
+        right_result = self.right.evaluate(entry)
         result = left_result or right_result
 
-        left_explain = self.left.explain(record)
-        right_explain = self.right.explain(record)
+        left_explain = self.left.explain(entry)
+        right_explain = self.right.explain(entry)
 
         return (
             f"({left_explain}) OR ({right_explain}) → "
@@ -241,15 +241,15 @@ class NotCondition(Condition):
     def __init__(self, condition: Condition):
         self.condition = condition
 
-    def evaluate(self, record: Any) -> bool:
+    def evaluate(self, entry: Any) -> bool:
         """Evaluate the condition and return its negation."""
-        return not self.condition.evaluate(record)
+        return not self.condition.evaluate(entry)
 
-    def explain(self, record: Any) -> str:
+    def explain(self, entry: Any) -> str:
         """Explain why the NOT condition evaluates to true or false."""
-        inner_result = self.condition.evaluate(record)
+        inner_result = self.condition.evaluate(entry)
         result = not inner_result
-        inner_explain = self.condition.explain(record)
+        inner_explain = self.condition.explain(entry)
 
         return f"NOT ({inner_explain}) → NOT {inner_result} → {result}"
 

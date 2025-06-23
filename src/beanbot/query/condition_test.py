@@ -15,8 +15,8 @@ from .condition import (
 
 
 @dataclass
-class MockRecord:
-    """Mock record for testing conditions."""
+class MockEntry:
+    """Mock entry for testing conditions."""
 
     amount: float
     account: str
@@ -30,7 +30,7 @@ class TestFieldCondition:
 
     def setup_method(self):
         """Set up test data."""
-        self.record = MockRecord(
+        self.entry = MockEntry(
             amount=150.50,
             account="Assets:Cash",
             description="Coffee transfer payment",
@@ -40,75 +40,75 @@ class TestFieldCondition:
 
     def test_eq_operator_true(self):
         condition = FieldCondition("amount", "eq", 150.50)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_eq_operator_false(self):
         condition = FieldCondition("amount", "eq", 100.00)
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
     def test_ne_operator_true(self):
         condition = FieldCondition("amount", "ne", 100.00)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_ne_operator_false(self):
         condition = FieldCondition("amount", "ne", 150.50)
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
     def test_lt_operator_true(self):
         condition = FieldCondition("amount", "lt", 200.00)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_lt_operator_false(self):
         condition = FieldCondition("amount", "lt", 100.00)
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
     def test_le_operator_true(self):
         condition = FieldCondition("amount", "le", 150.50)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_le_operator_false(self):
         condition = FieldCondition("amount", "le", 100.00)
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
     def test_gt_operator_true(self):
         condition = FieldCondition("amount", "gt", 100.00)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_gt_operator_false(self):
         condition = FieldCondition("amount", "gt", 200.00)
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
     def test_ge_operator_true(self):
         condition = FieldCondition("amount", "ge", 150.50)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_ge_operator_false(self):
         condition = FieldCondition("amount", "ge", 200.00)
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
     def test_in_operator_true(self):
         condition = FieldCondition("account", "in", ["Assets:Cash", "Assets:Bank"])
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_in_operator_false(self):
         condition = FieldCondition("account", "in", ["Liabilities:CreditCard"])
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
     def test_contains_operator_true(self):
         condition = FieldCondition("description", "contains", "transfer")
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_contains_operator_false(self):
         condition = FieldCondition("description", "contains", "salary")
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
     def test_regex_operator_true(self):
         condition = FieldCondition("description", "regex", r"transfer")
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_regex_operator_false(self):
         condition = FieldCondition("description", "regex", r"^salary")
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
     def test_regex_pattern_compilation(self):
         condition = FieldCondition("payee", "regex", r"\b(john|jane)\b")
@@ -117,27 +117,27 @@ class TestFieldCondition:
 
     def test_regex_case_sensitive(self):
         condition = FieldCondition("payee", "regex", r"John")
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
     def test_regex_case_insensitive(self):
         condition = FieldCondition("payee", "regex", r"(?i)John")
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_unsupported_operator(self):
         with pytest.raises(ValueError, match="Unsupported operator: invalid"):
             condition = FieldCondition("amount", "invalid", 100)
-            condition.evaluate(self.record)
+            condition.evaluate(self.entry)
 
     def test_missing_field(self):
         condition = FieldCondition("nonexistent", "eq", "value")
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
 
 class TestCustomCondition:
     """Test CustomCondition class."""
 
     def setup_method(self):
-        self.record = MockRecord(
+        self.entry = MockEntry(
             amount=150.50,
             account="Assets:Cash",
             description="Coffee transfer payment",
@@ -146,25 +146,25 @@ class TestCustomCondition:
         )
 
     def test_custom_function_true(self):
-        condition = CustomCondition(lambda record: record.year == 2024)
-        assert condition.evaluate(self.record) is True
+        condition = CustomCondition(lambda entry: entry.year == 2024)
+        assert condition.evaluate(self.entry) is True
 
     def test_custom_function_false(self):
-        condition = CustomCondition(lambda record: record.year == 2023)
-        assert condition.evaluate(self.record) is False
+        condition = CustomCondition(lambda entry: entry.year == 2023)
+        assert condition.evaluate(self.entry) is False
 
     def test_complex_custom_function(self):
         condition = CustomCondition(
-            lambda record: record.amount > 100 and "Assets" in record.account
+            lambda entry: entry.amount > 100 and "Assets" in entry.account
         )
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
 
 class TestLogicalConditions:
     """Test logical combination conditions."""
 
     def setup_method(self):
-        self.record = MockRecord(
+        self.entry = MockEntry(
             amount=150.50,
             account="Assets:Cash",
             description="Coffee transfer payment",
@@ -176,48 +176,48 @@ class TestLogicalConditions:
         left = FieldCondition("amount", "gt", 100)
         right = FieldCondition("account", "contains", "Assets")
         condition = AndCondition(left, right)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_and_condition_one_false(self):
         left = FieldCondition("amount", "gt", 200)
         right = FieldCondition("account", "contains", "Assets")
         condition = AndCondition(left, right)
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
     def test_or_condition_both_true(self):
         left = FieldCondition("amount", "gt", 100)
         right = FieldCondition("account", "contains", "Assets")
         condition = OrCondition(left, right)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_or_condition_one_true(self):
         left = FieldCondition("amount", "gt", 200)
         right = FieldCondition("account", "contains", "Assets")
         condition = OrCondition(left, right)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_or_condition_both_false(self):
         left = FieldCondition("amount", "gt", 200)
         right = FieldCondition("account", "contains", "Liabilities")
         condition = OrCondition(left, right)
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
     def test_not_condition_true(self):
         inner = FieldCondition("amount", "gt", 200)
         condition = NotCondition(inner)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_not_condition_false(self):
         inner = FieldCondition("amount", "gt", 100)
         condition = NotCondition(inner)
-        assert condition.evaluate(self.record) is False
+        assert condition.evaluate(self.entry) is False
 
 
 class TestOperatorOverloading:
     """Test operator overloading (&, |, ~)."""
 
     def setup_method(self):
-        self.record = MockRecord(
+        self.entry = MockEntry(
             amount=150.50,
             account="Assets:Cash",
             description="Coffee transfer payment",
@@ -231,7 +231,7 @@ class TestOperatorOverloading:
         combined = condition1 & condition2
 
         assert isinstance(combined, AndCondition)
-        assert combined.evaluate(self.record) is True
+        assert combined.evaluate(self.entry) is True
 
     def test_or_operator(self):
         condition1 = FieldCondition("amount", "gt", 200)
@@ -239,14 +239,14 @@ class TestOperatorOverloading:
         combined = condition1 | condition2
 
         assert isinstance(combined, OrCondition)
-        assert combined.evaluate(self.record) is True
+        assert combined.evaluate(self.entry) is True
 
     def test_not_operator(self):
         condition = FieldCondition("amount", "gt", 200)
         negated = ~condition
 
         assert isinstance(negated, NotCondition)
-        assert negated.evaluate(self.record) is True
+        assert negated.evaluate(self.entry) is True
 
     def test_complex_combination(self):
         condition1 = FieldCondition("amount", "gt", 100)
@@ -255,14 +255,14 @@ class TestOperatorOverloading:
 
         # (amount > 100 & account contains "Assets") | description in ["salary", "bonus"]
         combined = (condition1 & condition2) | condition3
-        assert combined.evaluate(self.record) is True
+        assert combined.evaluate(self.entry) is True
 
 
 class TestFieldConditionBuilder:
     """Test FieldConditionBuilder class."""
 
     def setup_method(self):
-        self.record = MockRecord(
+        self.entry = MockEntry(
             amount=150.50,
             account="Assets:Cash",
             description="Coffee transfer payment",
@@ -278,53 +278,53 @@ class TestFieldConditionBuilder:
     def test_builder_eq(self):
         condition = field("amount").eq(150.50)
         assert isinstance(condition, FieldCondition)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_builder_ne(self):
         condition = field("amount").ne(100.00)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_builder_lt(self):
         condition = field("amount").lt(200.00)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_builder_le(self):
         condition = field("amount").le(150.50)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_builder_gt(self):
         condition = field("amount").gt(100.00)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_builder_ge(self):
         condition = field("amount").ge(150.50)
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_builder_in(self):
         condition = field("account").in_(["Assets:Cash", "Assets:Bank"])
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_builder_contains(self):
         condition = field("description").contains("transfer")
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
     def test_builder_regex(self):
         condition = field("description").regex(r"transfer")
-        assert condition.evaluate(self.record) is True
+        assert condition.evaluate(self.entry) is True
 
 
 class TestUsageExamples:
     """Test the usage examples from the documentation."""
 
     def setup_method(self):
-        self.record1 = MockRecord(
+        self.entry1 = MockEntry(
             amount=150.50,
             account="Assets:Cash",
             description="salary payment",
             payee="employer",
             year=2024,
         )
-        self.record2 = MockRecord(
+        self.entry2 = MockEntry(
             amount=50.00,
             account="Liabilities:CreditCard",
             description="bonus transfer",
@@ -336,10 +336,10 @@ class TestUsageExamples:
         condition1 = field("amount").gt(100)
         condition2 = field("account").eq("Assets:Cash")
 
-        assert condition1.evaluate(self.record1) is True
-        assert condition1.evaluate(self.record2) is False
-        assert condition2.evaluate(self.record1) is True
-        assert condition2.evaluate(self.record2) is False
+        assert condition1.evaluate(self.entry1) is True
+        assert condition1.evaluate(self.entry2) is False
+        assert condition2.evaluate(self.entry1) is True
+        assert condition2.evaluate(self.entry2) is False
 
     def test_combining_conditions(self):
         condition1 = field("amount").gt(100)
@@ -347,54 +347,54 @@ class TestUsageExamples:
 
         # AND
         combined = condition1 & condition2
-        assert combined.evaluate(self.record1) is True
-        assert combined.evaluate(self.record2) is False
+        assert combined.evaluate(self.entry1) is True
+        assert combined.evaluate(self.entry2) is False
 
         # OR
         either = condition1 | condition2
-        assert either.evaluate(self.record1) is True
-        assert either.evaluate(self.record2) is False
+        assert either.evaluate(self.entry1) is True
+        assert either.evaluate(self.entry2) is False
 
         # NOT
         negated = ~condition1
-        assert negated.evaluate(self.record1) is False
-        assert negated.evaluate(self.record2) is True
+        assert negated.evaluate(self.entry1) is False
+        assert negated.evaluate(self.entry2) is True
 
     def test_complex_combinations(self):
         complex_condition = (
             field("amount").gt(100) & field("account").contains("Assets")
         ) | field("description").in_(["salary", "bonus transfer"])
 
-        assert complex_condition.evaluate(self.record1) is True  # Both sides true
-        assert complex_condition.evaluate(self.record2) is True  # Right side true
+        assert complex_condition.evaluate(self.entry1) is True  # Both sides true
+        assert complex_condition.evaluate(self.entry2) is True  # Right side true
 
     def test_custom_condition_example(self):
-        custom = CustomCondition(lambda record: record.year == 2024)
-        assert custom.evaluate(self.record1) is True
-        assert custom.evaluate(self.record2) is True
+        custom = CustomCondition(lambda entry: entry.year == 2024)
+        assert custom.evaluate(self.entry1) is True
+        assert custom.evaluate(self.entry2) is True
 
     def test_regex_examples(self):
         # Match description containing "transfer" (case-sensitive)
         condition1 = field("description").regex(r"transfer")
-        assert condition1.evaluate(self.record2) is True
-        assert condition1.evaluate(self.record1) is False
+        assert condition1.evaluate(self.entry2) is True
+        assert condition1.evaluate(self.entry1) is False
 
         # Match account names starting with "Assets" or "Liabilities"
         condition2 = field("account").regex(r"^(Assets|Liabilities)")
-        assert condition2.evaluate(self.record1) is True
-        assert condition2.evaluate(self.record2) is True
+        assert condition2.evaluate(self.entry1) is True
+        assert condition2.evaluate(self.entry2) is True
 
         # Complex regex with word boundaries
         condition4 = field("payee").regex(r"\b(john|jane)\b")
-        assert condition4.evaluate(self.record2) is True
-        assert condition4.evaluate(self.record1) is False
+        assert condition4.evaluate(self.entry2) is True
+        assert condition4.evaluate(self.entry1) is False
 
 
 class TestExplainAndStringRepresentation:
     """Test explain method and string representations."""
 
     def setup_method(self):
-        self.record = MockRecord(
+        self.entry = MockEntry(
             amount=150.50,
             account="Assets:Cash",
             description="Coffee transfer payment",
@@ -449,22 +449,22 @@ class TestExplainAndStringRepresentation:
 
     def test_field_condition_explain_true(self):
         condition = field("amount").gt(100)
-        explanation = condition.explain(self.record)
+        explanation = condition.explain(self.entry)
         assert explanation == "amount: '150.5' > '100' → True"
 
     def test_field_condition_explain_false(self):
         condition = field("amount").gt(200)
-        explanation = condition.explain(self.record)
+        explanation = condition.explain(self.entry)
         assert explanation == "amount: '150.5' > '200' → False"
 
     def test_field_condition_explain_eq(self):
         condition = field("account").eq("Assets:Cash")
-        explanation = condition.explain(self.record)
+        explanation = condition.explain(self.entry)
         assert explanation == "account: 'Assets:Cash' == 'Assets:Cash' → True"
 
     def test_field_condition_explain_contains(self):
         condition = field("description").contains("transfer")
-        explanation = condition.explain(self.record)
+        explanation = condition.explain(self.entry)
         assert (
             explanation
             == "description: 'transfer' contains 'Coffee transfer payment' → True"
@@ -472,7 +472,7 @@ class TestExplainAndStringRepresentation:
 
     def test_field_condition_explain_regex(self):
         condition = field("description").regex(r"transfer")
-        explanation = condition.explain(self.record)
+        explanation = condition.explain(self.entry)
         assert (
             explanation
             == "description: 'Coffee transfer payment' matches pattern 'transfer' → True"
@@ -480,14 +480,14 @@ class TestExplainAndStringRepresentation:
 
     def test_custom_condition_explain(self):
         condition = CustomCondition(lambda r: r.year == 2024, "year is 2024")
-        explanation = condition.explain(self.record)
+        explanation = condition.explain(self.entry)
         assert explanation == "year is 2024 → True"
 
     def test_and_condition_explain_true(self):
         left = field("amount").gt(100)
         right = field("account").contains("Assets")
         condition = left & right
-        explanation = condition.explain(self.record)
+        explanation = condition.explain(self.entry)
         expected = (
             "(amount: '150.5' > '100' → True) AND "
             "(account: 'Assets' contains 'Assets:Cash' → True) → "
@@ -499,7 +499,7 @@ class TestExplainAndStringRepresentation:
         left = field("amount").gt(200)
         right = field("account").contains("Assets")
         condition = left & right
-        explanation = condition.explain(self.record)
+        explanation = condition.explain(self.entry)
         expected = (
             "(amount: '150.5' > '200' → False) AND "
             "(account: 'Assets' contains 'Assets:Cash' → True) → "
@@ -511,7 +511,7 @@ class TestExplainAndStringRepresentation:
         left = field("amount").gt(200)
         right = field("account").contains("Assets")
         condition = left | right
-        explanation = condition.explain(self.record)
+        explanation = condition.explain(self.entry)
         expected = (
             "(amount: '150.5' > '200' → False) OR "
             "(account: 'Assets' contains 'Assets:Cash' → True) → "
@@ -522,7 +522,7 @@ class TestExplainAndStringRepresentation:
     def test_not_condition_explain(self):
         inner = field("amount").gt(200)
         condition = ~inner
-        explanation = condition.explain(self.record)
+        explanation = condition.explain(self.entry)
         expected = "NOT (amount: '150.5' > '200' → False) → NOT False → True"
         assert explanation == expected
 
@@ -530,7 +530,7 @@ class TestExplainAndStringRepresentation:
         condition = (
             field("amount").gt(100) & field("account").contains("Assets")
         ) | field("year").eq(2023)
-        explanation = condition.explain(self.record)
+        explanation = condition.explain(self.entry)
         # This will be a complex nested explanation
         assert "→" in explanation
         assert "AND" in explanation
